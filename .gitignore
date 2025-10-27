@@ -1,2 +1,5 @@
 /.venv
 /old
+.env
+requirements_download_data.txt
+/data
