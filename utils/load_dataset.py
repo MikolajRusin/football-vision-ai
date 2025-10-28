@@ -17,7 +17,8 @@ class LoadDataset(Dataset):
 
     def __post_init__(self):
         self.load_data()
-        self._load_categories()
+        self.load_categories()
+        self.changed_categories = False
 
     def load_data(self):
         self.coco = COCO(self.coco_annotations_path)
@@ -26,8 +27,19 @@ class LoadDataset(Dataset):
         if self.set_ratio is not None:
             self._filter_indices_by_ratio()
 
-    def _load_categories(self):
+    def load_categories(self, custom_categories: list[dict[Any, Any]] | None = None):
         self.categories = self.coco.loadCats(self.coco.getCatIds())
+        if custom_categories is not None:
+            if len(self.categories) != len(custom_categories):
+                raise ValueError('Old categories and custom categories must be the same length')
+            else:
+                self.old_categories = self.categories
+                self.categories = custom_categories
+                self.old2new_id = {old_id: new_id for old_id, new_id in zip([d['id'] for d in self.old_categories], [d['id'] for d in self.categories])}
+                
+                print(f'Changed {self.old_categories} categories into {self.categories} categories')
+                self.changed_categories = True
+
 
     def _filter_indices_by_ratio(self):
         n_ids = len(self.ids)
@@ -49,6 +61,8 @@ class LoadDataset(Dataset):
         anns = self.coco.loadAnns(self.coco.getAnnIds(id))
         bboxes = [ann['bbox'] for ann in anns]
         category_ids = [ann['category_id'] for ann in anns]
+        if self.changed_categories:
+            category_ids = [self.old2new_id[old_id] for old_id in category_ids]
         return bboxes, category_ids
         
     def __len__(self) -> int:
