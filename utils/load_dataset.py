@@ -39,7 +39,7 @@ class LoadDataset(Dataset):
                 self.categories = custom_categories
                 self.old2new_id = {old_id: new_id for old_id, new_id in zip([d['id'] for d in self.old_categories], [d['id'] for d in self.categories])}
                 
-                print(f'Changed {self.old_categories} categories into {self.categories} categories')
+                print(f'Changed {self.old_categories} categories to {self.categories} categories')
                 self.changed_categories = True
 
 
