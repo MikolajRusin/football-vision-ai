@@ -14,8 +14,8 @@ class LoadDataset(Dataset):
     dataset_dir_path: Path
     coco_annotations_path: Path
     set_ratio: float | int | None = None
-    transforms: albumentations.Compose = None
-    normalize_boxes: bool = True
+    transforms: albumentations.Compose | None = None
+    normalize_boxes: bool = False
 
     def __post_init__(self):
         self.load_data()
