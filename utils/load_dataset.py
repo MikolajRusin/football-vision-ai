@@ -100,9 +100,9 @@ class LoadDataset(Dataset):
 
         if self.normalize_boxes:
             bboxes = normalize_bboxes(bboxes, image_height=image.shape[1], image_width=image.shape[2])
-            
+
         target = {
-            'bboxes': bboxes,
+            'boxes': bboxes,
             'labels': category_ids
         }
 
