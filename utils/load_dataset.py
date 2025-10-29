@@ -1,3 +1,4 @@
+from utils.box_ops import normalize_bboxes
 from torch.utils.data import Dataset
 from pycocotools.coco import COCO
 from dataclasses import dataclass
@@ -14,6 +15,7 @@ class LoadDataset(Dataset):
     coco_annotations_path: Path
     set_ratio: float | int | None = None
     transforms: albumentations.Compose = None
+    normalize_boxes: bool = True
 
     def __post_init__(self):
         self.load_data()
@@ -96,6 +98,9 @@ class LoadDataset(Dataset):
         bboxes       = torch.as_tensor(bboxes, dtype=torch.float32)
         category_ids = torch.as_tensor(category_ids, dtype=torch.int64)
 
+        if self.normalize_boxes:
+            bboxes = normalize_bboxes(bboxes, image_height=image.shape[1], image_width=image.shape[2])
+            
         target = {
             'bboxes': bboxes,
             'labels': category_ids
