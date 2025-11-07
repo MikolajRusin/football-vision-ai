@@ -1,0 +1,57 @@
+# Main configuration for the training process
+paths:
+  project_root: '/home/mikolaj/Desktop/Projects/my_projects/football-ai'
+  train:
+    images: '${paths.project_root}/data/train/images'
+    annotations: '${paths.project_root}/data/train/coco_annotations/annotations.json'
+  valid:
+    images: '${paths.project_root}/data/valid/images'
+    annotations: '${paths.project_root}/data/valid/coco_annotations/annotations.json'
+
+training:
+  num_epochs: 1000
+  batch_size: 1
+  train_set_ratio: 1
+  valid_set_ratio: 2
+  val_frequency: null
+  log_metrics: false
+  map_per_class: false  # If log_metrics = True
+  shuffle: false
+  desire_bbox_format: coco
+  augmentation: false
+  pin_memory: true
+  device: 'cuda'
+
+# Model configuration
+model:
+  model_id: SenseTime/deformable-detr
+  id2label:
+    0: 'N/A'
+    1: 'Ball'
+    2: 'Goalkeeper'
+    3: 'Player'
+    4: 'Referee'
+  device: ${training.device}
+
+# Optimizer configuration
+optimizer:
+  type: adamw  # Default
+  params:
+    lr: 5e-6
+    backbone_lr: 5e-6
+    weight_decay: 0.01
+
+# Scheduler configuration
+scheduler:
+  type: null  # If you don't want to use scheduler the set the type as null
+  params:
+    T_max: ${training.num_epochs}
+    eta_min: 1e-6
+  
+# wandb_logger:
+#   project_name: football-ai
+#   project_config:
+#     <<: ${training}
+#     <<: ${model}
+#     <<: ${optimizer}
+#     <<: ${scheduler}
