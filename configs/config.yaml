@@ -15,9 +15,9 @@ training:
   valid_set_ratio: 2
   val_frequency: null
   log_metrics: false
-  map_per_class: false  # If log_metrics = True
+  map_per_class: true  # If log_metrics = True
   shuffle: false
-  desire_bbox_format: coco
+  desire_bbox_format: xywh
   augmentation: false
   pin_memory: true
   device: 'cuda'

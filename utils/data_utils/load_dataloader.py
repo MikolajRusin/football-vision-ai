@@ -12,7 +12,7 @@ def collate_fn(batch) -> tuple[list[torch.Tensor], list[dict[str, torch.Tensor]]
     return images, targets
 
 def load_dataloader(root_dir: Path | str, coco_path: Path | str, set_ratio: float | int | None = None, custom_categories: dict[str, Any] | None = None, 
-                    batch_size: int = 1, shuffle: bool = False, transform_func: A.Compose | None = None, desire_bbox_format: str = 'yolo', pin_memory: bool = False):
+                    batch_size: int = 1, shuffle: bool = False, transform_func: A.Compose | None = None, desire_bbox_format: str = 'xywh', pin_memory: bool = False):
     dataset = LoadDataset(
         dataset_dir_path=Path(root_dir),
         coco_annotations_path=Path(coco_path),

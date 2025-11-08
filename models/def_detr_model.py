@@ -36,7 +36,6 @@ class DefDetrModel(nn.Module):
             self._reset_class_embeddings(model)
         return model
 
-    # @torch.no_grad()
     def forward(self, images: list[torch.Tensor], targets: list[dict[str, Any]] | None = None) -> BaseModelOutput:
         if targets is not None:
             inputs = self.processor(images=images, annotations=targets, return_tensors='pt')
@@ -44,10 +43,19 @@ class DefDetrModel(nn.Module):
             pixel_mask   = inputs['pixel_mask'].to(self.device)
             labels       = [{k: v.to(self.device) for k, v in l.items()} for l in inputs['labels']]
             outputs = self.model(pixel_values=pixel_values, pixel_mask=pixel_mask, labels=labels)
+            
+            outputs.size = [l['size'].to(self.device) for l in inputs['labels']]
+            outputs.orig_size = [l['orig_size'].to(self.device) for l in inputs['labels']]
         else:
             inputs = self.processor(images=images, return_tensors='pt')
             pixel_values = inputs['pixel_values'].to(self.device)
             pixel_mask   = inputs['pixel_mask'].to(self.device)
             outputs = self.model(pixel_values=pixel_values, pixel_mask=pixel_mask)
+            
+            resized_size = torch.tensor(pixel_values.shape[-2:], device=self.device)
+            outputs.size = [resized_size for _ in range(len(images))]
+
+            orig_size = [torch.tensor((img.shape[-2], img.shape[-1]), device=self.device) for img in images]
+            outputs.orig_size = orig_size
 
         return outputs

@@ -38,9 +38,8 @@ def main():
         [
             A.HorizontalFlip(p=0.4),
             A.RandomBrightnessContrast(p=0.3),
-            A.RandomRotate90(p=0.3),  # Rotacja obrazu o 90 stopni
-            A.CLAHE(p=0.5),  # Stosowanie CLAHE
-            A.HueSaturationValue(p=0.3)  # Zmiana odcienia, nasycenia i wartości
+            A.CLAHE(p=0.5),
+            A.HueSaturationValue(p=0.3)
         ],
         bbox_params=A.BboxParams(format='coco', label_fields=['category_ids'])
     )

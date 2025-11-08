@@ -1,4 +1,4 @@
-from utils.box_ops import coco2yolo, coco2xyxy, normalize_area, normalize_bboxes
+from utils.box_ops import xywh2xcycwh, xywh2xyxy, normalize_area, normalize_bboxes
 from torch.utils.data import Dataset
 from pycocotools.coco import COCO
 from dataclasses import dataclass
@@ -15,7 +15,7 @@ class LoadDataset(Dataset):
     coco_annotations_path: Path
     set_ratio: float | int | None = None
     transforms: albumentations.Compose | None = None
-    desire_bbox_format: str = 'xyxy'
+    desire_bbox_format: str = 'xywh'
 
     def __post_init__(self):
         self.load_data()
@@ -113,14 +113,16 @@ class LoadDataset(Dataset):
 
         # Convert bboxes if desire_bbox_format is different than coco 
         # The code for area normalization is duplicated for future updates
-        if self.desire_bbox_format == 'yolo':
-            bboxes = coco2yolo(bboxes, image_height=image.shape[1], image_width=image.shape[2])
+        if self.desire_bbox_format == 'cxcywh':
+            bboxes = xywh2xcycwh(bboxes)
+            bboxes = normalize_bboxes(bboxes, image_height=image.shape[1], image_width=image.shape[2])
             areas = normalize_area(areas, image_height=image.shape[1], image_width=image.shape[2])
         elif self.desire_bbox_format == 'xyxy':
-            bboxes = coco2xyxy(bboxes, image_height=image.shape[1], image_width=image.shape[2])
+            bboxes = xywh2xyxy(bboxes)
+            bboxes = normalize_bboxes(bboxes, image_height=image.shape[1], image_width=image.shape[2])
             areas = normalize_area(areas, image_height=image.shape[1], image_width=image.shape[2])
-        elif self.desire_bbox_format == 'coco':
-            # For COCO format, keep bboxes and areas in absolute pixel coordinates
+        elif self.desire_bbox_format == 'xywh':
+            # xywh format is the default format for saved dataset
             pass
         
         target = {
