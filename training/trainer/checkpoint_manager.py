@@ -58,7 +58,7 @@ class ModelCheckpointManager:
 
     def save_checkpoint(
         self,
-        model: str,
+        model: nn.Module,
         checkpoint_name: str | None = None, 
         epoch: int | None = None,
         iteration: int | None = None
