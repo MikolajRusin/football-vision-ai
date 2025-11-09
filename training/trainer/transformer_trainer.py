@@ -2,14 +2,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
-from utils.box_ops import denormalize_bboxes
+from utils.box_ops import cxcywh2xywh, denormalize_bboxes, resize_bboxes
 from tqdm import tqdm
 from dataclasses import dataclass
 from torch.utils.data import DataLoader
 from logger.wandb_logger import WandbLogger
 from transformers.modeling_outputs import BaseModelOutput
-from evaluator import Evaluator
-import gc
+from training.trainer.evaluator import Evaluator
+from manager.checkpoint_manager import ModelCheckpointManager
 
 @dataclass
 class TransformerTrainer:
@@ -17,13 +17,14 @@ class TransformerTrainer:
     train_dataloader: DataLoader
     valid_dataloader: DataLoader | None = None
     val_frequency: int | None = None
-    wandb_logger: WandbLogger | None = None
-    map_per_class: bool = False
     n_epochs: int = 5
     optimizer: str = 'adamw'
     optimizer_params: dict | None = None
     lr_scheduler: str | None = None
     lr_scheduler_params: dict | None = None
+    checkpoint_manager: ModelCheckpointManager | None = None
+    wandb_logger: WandbLogger | None = None
+    map_per_class: bool = False
 
     def __post_init__(self):
         # Set model type
@@ -42,7 +43,9 @@ class TransformerTrainer:
         print(' Start Training '.center(90, '-'))
         self._display_training_params()
 
-        for cur_n_epoch in range(self.n_epochs):
+        for epoch in range(self.n_epochs):
+            cur_n_epoch = epoch + 1
+
             # Train
             train_loss = self._train_one_epoch(cur_n_epoch)
             self.train_loss.append(train_loss)   
@@ -56,32 +59,30 @@ class TransformerTrainer:
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
 
+            if self.checkpoint_manager is not None:
+                self.checkpoint_manager.save_checkpoint(self.model, epoch=cur_n_epoch)
+
         print(' End Training '.center(90, '-'))
 
-    def _train_one_epoch(self, epoch):
+    def _train_one_epoch(self, cur_n_epoch):
         running_loss = 0
-        running_box_loss = 0
         running_total_samples = 0
 
         # Iteration loop for training one epoch
-        for iteration, (batch_image, batch_target) in enumerate(tqdm(self.train_dataloader, total=len(self.train_dataloader), desc=f'Epoch {epoch}/{self.n_epochs}')):
+        for iteration, (batch_image, batch_target) in enumerate(tqdm(self.train_dataloader, total=len(self.train_dataloader), desc=f'Epoch {cur_n_epoch}/{self.n_epochs}')):
             torch.cuda.empty_cache()  # Clear the CUDA cache
             self.model.train()        # Set the model to train mode
+            cur_n_iteration = iteration + 1
 
             # Get the model's predictions for a batch, calculate losses and make the common steps
             outputs = self.model(batch_image, batch_target)
             loss = outputs.loss
             self._common_steps(loss)
 
-            print('pred_boxespred_boxespred_boxespred_boxespred_boxes')
-            print(type(outputs))
-            print(outputs.pred_boxes)
             print('\nlogitslogitslogitslogitslogitslogitslogits')
             print(outputs.logits.argmax(dim=-1))
             print('\nloss')
             print(outputs.loss)
-            print('\nkeykeykeykeykeykeykey')
-            print(outputs.keys())
             break
             
             # Add loss to the total loss for current epoch
@@ -89,9 +90,12 @@ class TransformerTrainer:
             running_total_samples += len(batch_image)
 
             # Model validation with specified val_frequency
-            if self.val_frequency is not None and ((iteration + 1) % self.val_frequency) == 0:
+            if self.val_frequency is not None and (cur_n_iteration % self.val_frequency) == 0:
                 freq_val_loss  =  self.evaluate_model(self.valid_dataloader)
                 avg_train_loss = running_loss / running_total_samples
+
+                if self.checkpoint_manager is not None:
+                    self.checkpoint_manager.save_checkpoint(self.model, epoch=cur_n_epoch, iteration=cur_n_iteration)
 
         return running_loss / len(self.train_dataloader)
     
@@ -138,8 +142,11 @@ class TransformerTrainer:
             }
             for img_target in batch_target
         ]
-        print('boxesboxesboxesboxesboxesboxesboxesboxesboxesboxesboxesboxes')
+        print('target_boxestarget_boxestarget_boxestarget_boxestarget_boxestarget_boxestarget_boxestarget_boxes')
         print([t['boxes'] for t in targets_for_evaluator])
+        print('target_labelstarget_labelstarget_labelstarget_labelstarget_labelstarget_labelstarget_labels')
+        print([t['labels'] for t in targets_for_evaluator])
+
         return targets_for_evaluator  
     
     def _postprocess_outputs_for_evaluator(self, outputs: BaseModelOutput):
@@ -147,34 +154,31 @@ class TransformerTrainer:
         raw_pred_boxes  = outputs.pred_boxes
         resized_sizes   = outputs.size
         orig_sizes      = outputs.orig_size
-        
-        model_type = self.model.__class__.__name__
 
         # Convert logits into scores and predicted class_ids
         preds = raw_logits.softmax(-1)
         scores, cls_ids = preds.max(-1)
 
         # Filter classes where cls_id != 0 (Background)
-        score_threshold = 0.4
+        score_threshold = 0.3
         keep_mask  = ((cls_ids != 0) & (scores >= score_threshold))
-        print('scorescorescorescorescorescorescorescorescorescorescorescore')
-        print(scores)
         print('sumsumsumsumsumsumsumsumsumsumsumsumsumsumsum')
         print(torch.sum(keep_mask))
         scores     = scores[keep_mask]
         cls_ids    = cls_ids[keep_mask]
         pred_boxes = raw_pred_boxes[keep_mask]
+        print('cls+idscls+idscls+idscls+idscls+idscls+idscls+idscls+idscls+ids')
+        print(cls_ids)
 
-        # Add batch dimension for single image (if needed)
+        # Add batch dimension for single image
         scores     = scores.unsqueeze(0) if scores.ndim == 1 else scores
         cls_ids    = cls_ids.unsqueeze(0) if cls_ids.ndim == 1 else cls_ids
         pred_boxes = pred_boxes.unsqueeze(0) if pred_boxes.ndim == 2 else pred_boxes
         
-
         # Combine all data
         preds_for_evaluator = [
             {
-                'boxes': self._convert_pred_boxes(
+                'boxes': self._convert_pred_boxes_for_evaluator(
                     pred_boxes=img_pred_boxes, 
                     resized_size=tuple(resized_size.tolist()),
                     target_size=tuple(orig_size.tolist())
@@ -187,11 +191,17 @@ class TransformerTrainer:
         ]
         print('pred_bboxespred_bboxespred_bboxespred_bboxespred_bboxespred_bboxespred_bboxes')
         print([t['boxes'] for t in preds_for_evaluator])
+        print('pred_labelspred_labelspred_labelspred_labelspred_labelspred_labelspred_labels')
+        print([t['labels'] for t in preds_for_evaluator])
+        
         return preds_for_evaluator
 
-    def _convert_pred_boxes(self, pred_boxes: torch.Tensor, resized_size: tuple[int, int], target_size: tuple[int, int]):
+    def _convert_pred_boxes_for_evaluator(self, pred_boxes: torch.Tensor, resized_size: tuple[int, int], target_size: tuple[int, int]):
         if self.model_type == 'detr':
-            pass
+            pred_boxes = cxcywh2xywh(pred_boxes)
+            pred_boxes = denormalize_bboxes(pred_boxes, resized_size[0], resized_size[1])
+            pred_boxes = resize_bboxes(pred_boxes, resized_size, target_size)
+        return pred_boxes 
 
     def _configure_optimizer_and_scheduler(self) -> tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler | None]:
         # Configure Optimizer
@@ -217,9 +227,9 @@ class TransformerTrainer:
 
     def _get_model_type(self):
         model_type = self.model.__class__.__name__.lower()
-        if 'deta' in self.model_type:
+        if 'deta' in model_type:
             model_type = 'deta'
-        elif 'detr' in self.model_type:
+        elif 'detr' in model_type:
             model_type = 'detr'
         return model_type
 
@@ -242,6 +252,7 @@ class TransformerTrainer:
     def _display_training_params(self):
         print(' Training Params '.center(90, '-'))
         print(f'Training model: {self.model.__class__.__name__}')
+        print(f'Model type: {self.model_type}')
         print(f'The model has been loaded on {'cuda' if next(self.model.parameters()).is_cuda else 'cpu'}')
         print(f'Number of images in train dataloader: {len(self.train_dataloader)}')
         if self.valid_dataloader is not None:

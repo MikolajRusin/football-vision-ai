@@ -1,11 +1,12 @@
 from pathlib import Path
 import sys
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
+from manager.checkpoint_manager import ModelCheckpointManager
 from utils.data_utils.load_dataloader import load_dataloader
 from logger.wandb_logger import WandbLogger
 from models.def_detr_model import DefDetrModel
-from training.transformer_trainer import TransformerTrainer
+from training.trainer.transformer_trainer import TransformerTrainer
 from dotenv import load_dotenv, find_dotenv
 from omegaconf import OmegaConf
 import albumentations as A
@@ -85,9 +86,21 @@ def main():
             project_name=CONFIG.wandb_logger.project_name, 
             project_config=OmegaConf.to_container(CONFIG.wandb_logger.model_config, resolve=True)  # Convert to dict
         )
+
+    # CheckpointManager
+    checkpoint_manager = None
+    if CONFIG.training.save_checkpoints:
+        checkpoint_manager = ModelCheckpointManager(
+            CONFIG.training.checkpoint_dir_path, 
+            CONFIG.training.max_checkpoints
+        )
     
     # Model
-    deformable_detr_model = DefDetrModel(model_id=CONFIG.model.model_id, id2label=CONFIG.model.id2label, device=CONFIG.training.device)
+    deformable_detr_model = DefDetrModel(
+        model_id=CONFIG.model.model_id, 
+        id2label=CONFIG.model.id2label, 
+        device=CONFIG.training.device
+    )
 
     # Trainer
     trainer = TransformerTrainer(
@@ -95,13 +108,14 @@ def main():
         train_dataloader=train_dataloader,
         valid_dataloader=valid_dataloader,
         val_frequency=CONFIG.training.val_frequency,
-        wandb_logger=wandb_logger,
-        map_per_class=CONFIG.training.map_per_class,
         n_epochs=CONFIG.training.num_epochs,
         optimizer=CONFIG.optimizer.type,
         optimizer_params=CONFIG.optimizer.params,
         lr_scheduler=CONFIG.scheduler.type if getattr(CONFIG.scheduler, 'type', None) else None,
-        lr_scheduler_params=CONFIG.scheduler.params if getattr(CONFIG.scheduler, 'type', None) else None
+        lr_scheduler_params=CONFIG.scheduler.params if getattr(CONFIG.scheduler, 'type', None) else None,
+        checkpoint_manager=checkpoint_manager,
+        wandb_logger=wandb_logger,
+        map_per_class=CONFIG.training.map_per_class
     )
     trainer.train()
 
