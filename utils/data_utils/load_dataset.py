@@ -1,4 +1,4 @@
-from utils.box_ops import xywh2xcycwh, xywh2xyxy, normalize_area, normalize_bboxes
+from utils.box_ops import xywh2cxcywh, xywh2xyxy, normalize_area, normalize_bboxes
 from torch.utils.data import Dataset
 from pycocotools.coco import COCO
 from dataclasses import dataclass
@@ -114,7 +114,7 @@ class LoadDataset(Dataset):
         # Convert bboxes if desire_bbox_format is different than coco 
         # The code for area normalization is duplicated for future updates
         if self.desire_bbox_format == 'cxcywh':
-            bboxes = xywh2xcycwh(bboxes)
+            bboxes = xywh2cxcywh(bboxes)
             bboxes = normalize_bboxes(bboxes, image_height=image.shape[1], image_width=image.shape[2])
             areas = normalize_area(areas, image_height=image.shape[1], image_width=image.shape[2])
         elif self.desire_bbox_format == 'xyxy':
