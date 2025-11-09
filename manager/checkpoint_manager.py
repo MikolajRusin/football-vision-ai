@@ -6,8 +6,6 @@ import torch.nn as nn
 import torch
 import os
 
-from torch.utils import checkpoint
-
 @dataclass
 class ModelCheckpointManager:
     checkpoint_dir_path: str | Path | None = None
@@ -19,7 +17,7 @@ class ModelCheckpointManager:
             self.checkpoint_dir_path.mkdir(parents=True, exist_ok=True)
         else:
             cur_time = dt.datetime.now().strftime('%d%m%Y_%H%M%S')
-            self.checkpoint_dir_path = Path(__file__).parents[2] / 'checkpoints' / f'run_{cur_time}'
+            self.checkpoint_dir_path = Path(__file__).parents[1] / 'checkpoints' / f'run_{cur_time}'
             self.checkpoint_dir_path.mkdir(parents=True)
 
         self.checkpoints_queue = self._load_start_queue()
