@@ -2,8 +2,8 @@ import torch
 import numpy as np
 
 def clip_bboxes_range(bboxes: np.ndarray | torch.Tensor, height: int | float, width: int | float):
-    bboxes[: [0, 2]] = torch.clamp(bboxes[:, [0, 2]], 0.0, float(width)) if isinstance(bboxes, torch.Tensor) else np.clip(bboxes[:, [0, 2]], 0.0, float(width))
-    bboxes[: [1, 3]] = torch.clamp(bboxes[:, [1, 3]], 0.0, float(height)) if isinstance(bboxes, torch.Tensor) else np.clip(bboxes[:, [1, 3]], 0.0, float(height))
+    bboxes[:, [0, 2]] = torch.clamp(bboxes[:, [0, 2]], 0.0, float(width)) if isinstance(bboxes, torch.Tensor) else np.clip(bboxes[:, [0, 2]], 0.0, float(width))
+    bboxes[:, [1, 3]] = torch.clamp(bboxes[:, [1, 3]], 0.0, float(height)) if isinstance(bboxes, torch.Tensor) else np.clip(bboxes[:, [1, 3]], 0.0, float(height))
     return bboxes
 
 def resize_bboxes(bboxes: np.ndarray | torch.Tensor, size: tuple[int, int], target_size: tuple[int, int]):
@@ -59,11 +59,10 @@ def normalize_bboxes(bboxes: np.ndarray | torch.Tensor, image_height: int | floa
 
     bboxes[:, [0, 2]] = bboxes[:, [0, 2]] / float(image_width)
     bboxes[:, [1, 3]] = bboxes[:, [1, 3]] / float(image_height)
-
     bboxes = clip_bboxes_range(bboxes, 1.0, 1.0)
     return bboxes
 
-def xywh2xcycwh(bboxes: np.ndarray | torch.Tensor):
+def xywh2cxcywh(bboxes: np.ndarray | torch.Tensor):
     if bboxes is None or len(bboxes) == 0:
         if isinstance(bboxes, torch.Tensor):
             return torch.zeros((0, 4), dtype=torch.float32)
@@ -75,7 +74,7 @@ def xywh2xcycwh(bboxes: np.ndarray | torch.Tensor):
     bboxes[:, 1] = bboxes[:, 1] + (bboxes[:, 3] / 2)
     return bboxes
     
-def xywh2xyxy(bboxes: np.ndarray | torch.Tensor, image_height: int | float, image_width: int | float):
+def xywh2xyxy(bboxes: np.ndarray | torch.Tensor):
     if bboxes is None or len(bboxes) == 0:
         if isinstance(bboxes, torch.Tensor):
             return torch.zeros((0, 4), dtype=torch.float32)
@@ -86,8 +85,17 @@ def xywh2xyxy(bboxes: np.ndarray | torch.Tensor, image_height: int | float, imag
 
     bboxes[:, 2] = bboxes[:, 0] + bboxes[:, 2]
     bboxes[:, 3] = bboxes[:, 1] + bboxes[:, 3]
-    bboxes = normalize_bboxes(bboxes, image_height, image_width)
     return bboxes
 
-def cxcywh2xywh(bboxes: np.ndarray | torch.Tensor, image_height: int | float, image_width: int | float):
-    pass
+def cxcywh2xywh(bboxes: np.ndarray | torch.Tensor):
+    if bboxes is None or len(bboxes) == 0:
+        if isinstance(bboxes, torch.Tensor):
+            return torch.zeros((0, 4), dtype=torch.float32)
+        return np.zeros((0, 4), dtype=np.float32)
+
+    is_tensor = isinstance(bboxes, torch.Tensor)
+    bboxes = bboxes.clone().float() if is_tensor else bboxes.astype(np.float32)
+
+    bboxes[:, 0] = bboxes[:, 0] - (bboxes[:, 2] / 2)
+    bboxes[:, 1] = bboxes[:, 1] - (bboxes[:, 3] / 2)
+    return bboxes
