@@ -13,8 +13,8 @@ training:
   batch_size: 1
   train_set_ratio: 2
   valid_set_ratio: 2
-  val_frequency: 2
-  save_checkpoints: true
+  val_frequency: null
+  save_checkpoints: false
   checkpoint_dir_path: null
   max_checkpoints: 5
   log_metrics: true
