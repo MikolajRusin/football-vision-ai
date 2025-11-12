@@ -11,13 +11,13 @@ paths:
 training:
   num_epochs: 1000
   batch_size: 1
-  train_set_ratio: 1
+  train_set_ratio: 2
   valid_set_ratio: 2
-  val_frequency: null
+  val_frequency: 2
   save_checkpoints: true
   checkpoint_dir_path: null
   max_checkpoints: 5
-  log_metrics: false
+  log_metrics: true
   map_per_class: true  # If log_metrics = True
   shuffle: false
   desire_bbox_format: xywh
@@ -51,10 +51,5 @@ scheduler:
     T_max: ${training.num_epochs}
     eta_min: 1e-6
   
-# wandb_logger:
-#   project_name: football-ai
-#   project_config:
-#     <<: ${training}
-#     <<: ${model}
-#     <<: ${optimizer}
-#     <<: ${scheduler}
+wandb_logger:
+  project_name: football-ai
