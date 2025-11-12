@@ -41,6 +41,7 @@ class TransformerTrainer:
         # Lists for tracking loss
         self.train_loss = []
         self.valid_loss = []
+        self.bbox_loss  = []
 
     def train(self) -> None:
         print(' Start Training '.center(90, '-'))
@@ -55,15 +56,20 @@ class TransformerTrainer:
             # Train
             train_results = self._train_one_epoch(cur_n_epoch)
             train_loss = train_results['losses']['loss']
+            train_bbox_loss = train_results['losses']['bbox_loss']
             epoch_results['losses']['train_loss'] = float(train_loss)
-            self.train_loss.append(train_loss)   
+            epoch_results['losses']['train_bbox_loss'] = float(train_bbox_loss)
+            self.train_loss.append(train_loss)
+            self.bbox_loss.append(train_bbox_loss)
 
             # Evaluate
             if self.valid_dataloader is not None:
                 valid_results = self.evaluate_model(self.train_dataloader)
                 valid_loss = valid_results['losses']['loss']
+                valid_bbox_loss = valid_results['losses']['bbox_loss']
                 valid_metrics = valid_results['metrics']
                 epoch_results['losses']['valid_loss'] = float(valid_loss)
+                epoch_results['losses']['valid_bbox_loss'] = float(valid_bbox_loss)
                 epoch_results['metrics'] = {k: float(v) for k, v in valid_metrics.items()}
                 self.valid_loss.append(valid_loss)
 
@@ -83,6 +89,7 @@ class TransformerTrainer:
 
     def _train_one_epoch(self, cur_n_epoch) -> dict[str, float]:
         running_loss = 0
+        running_bbox_loss = 0
         running_total_samples = 0
 
         # Iteration loop for training one epoch
@@ -99,14 +106,21 @@ class TransformerTrainer:
             loss = outputs.loss
             self._common_steps(loss)
 
-            # Add loss to the total loss for current epoch
+            # Add loss to the total runnning_loss for current epoch
             iteration_loss = loss.detach().cpu().item()
             running_loss += iteration_loss
+
+            # Add bbox loss to the running_bbox_loss
+            iteration_bbox_loss = outputs.loss_dict['loss_bbox'].detach().cpu().item()
+            running_bbox_loss += iteration_bbox_loss
+
+            # Add length of batch for further calculations
             running_total_samples += len(batch_image)
 
             # Log ireation results to wandb
-            iteration_results['losses']['loss'] = float(iteration_loss)
             if self.wandb_logger is not None:
+                iteration_results['losses']['loss'] = float(iteration_loss)
+                iteration_results['losses']['bbox_loss'] = float(iteration_bbox_loss)
                 self.wandb_logger.log_results(iteration_results, stage='iteration')
 
             # Model validation with specified val_frequency
@@ -114,15 +128,22 @@ class TransformerTrainer:
                 freq_results = {
                     'losses': {}
                 }
-                
-                freq_train_loss = running_loss / running_total_samples
-                freq_results['losses']['train_loss'] = float(freq_train_loss)
-
+                # Frequency validation results
                 freq_val_results = self.evaluate_model(self.valid_dataloader)
-                freq_val_loss = freq_val_results['losses']['loss']
                 freq_metrics = freq_val_results['metrics']
-                freq_results['losses']['val_loss'] = float(freq_val_loss)
+                freq_val_loss = freq_val_results['losses']['loss']
+                freq_val_bbox_loss = freq_val_results['losses']['bbox_loss']
+                # Add frequency validation results to the freq_results 
                 freq_results['metrics'] = {k: float(v) for k, v in freq_metrics.items()}
+                freq_results['losses']['val_loss'] = float(freq_val_loss)
+                freq_results['losses']['val_bbox_loss'] = float(freq_val_bbox_loss)
+
+                # Frequency train results
+                freq_train_loss = running_loss / running_total_samples
+                freq_train_bbox_loss = running_bbox_loss / running_total_samples
+                # Add frequency train results to the freq_results 
+                freq_results['losses']['train_loss'] = float(freq_train_loss)
+                freq_results['losses']['train_bbox_loss'] = float(freq_train_bbox_loss)
 
                 # Log frequency results to wandb
                 if self.wandb_logger is not None:
@@ -133,9 +154,11 @@ class TransformerTrainer:
                     self.checkpoint_manager.save_checkpoint(self.model, epoch=cur_n_epoch, iteration=cur_n_iteration)
 
             avg_train_loss = running_loss / running_total_samples
+            avg_train_bbox_loss = running_bbox_loss / running_total_samples
         return {
             'losses': {
-                'loss': avg_train_loss
+                'loss': avg_train_loss,
+                'bbox_loss': avg_train_bbox_loss
             }
         }
     
@@ -145,15 +168,19 @@ class TransformerTrainer:
         self.model.eval()  # Set the model to valid mode
 
         running_loss = 0
-        running_box_loss = 0
+        running_bbox_loss = 0
         all_preds = []
         all_targets = []
         
         # Iteration loop for model validation
         for (batch_image, batch_target) in tqdm(dataloader, total=len(dataloader), desc='Evaluating model'):
             outputs = self.model(batch_image, batch_target)
+            # Validation loss
             loss = outputs.loss
             running_loss += loss.cpu().item()
+            # Validation bbox loss
+            bbox_loss = outputs.loss_dict['loss_bbox']
+            running_bbox_loss += bbox_loss.cpu().item()
 
             preds    = self._postprocess_outputs_for_evaluator(outputs)
             targets  = self._postprocess_targets_for_evaluator(batch_target)
@@ -161,13 +188,15 @@ class TransformerTrainer:
             all_preds.extend(preds)
             all_targets.extend(targets)
         
-        map_metrics = self.evaluator.compute_metrics(all_preds, all_targets)
-        avg_valid_loss = running_loss / len(dataloader)
+        map_metrics         = self.evaluator.compute_metrics(all_preds, all_targets)
+        avg_valid_loss      = running_loss / len(dataloader)
+        avg_valid_bbox_loss = running_bbox_loss / len(dataloader)
 
         self.model.train()
         return {
             'losses': {
-                'loss': avg_valid_loss
+                'loss': avg_valid_loss,
+                'bbox_loss': avg_valid_bbox_loss
             },
             'metrics': map_metrics
         }
