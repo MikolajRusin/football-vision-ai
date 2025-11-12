@@ -50,6 +50,7 @@ class TransformerTrainer:
         for epoch in range(self.n_epochs):
             cur_n_epoch = epoch + 1
             epoch_results = {
+                'learning_rates': {},
                 'losses': {}
             }
 
@@ -75,6 +76,10 @@ class TransformerTrainer:
 
             # Update learning rate if provided scheduler
             if self.lr_scheduler is not None:
+                curr_learning_rates = self.lr_scheduler.get_last_lr()
+                epoch_results['learning_rates']['lr'] = float(curr_learning_rates[0])
+                if len(curr_learning_rates) == 2:
+                    epoch_results['learning_rates']['backbone_lr'] = float(curr_learning_rates[1])
                 self.lr_scheduler.step()
 
             # Log epoch results to wandb
