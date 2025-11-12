@@ -33,38 +33,55 @@ class TransformerTrainer:
         # Set optimizer and, if lr_scheduler is specified also lr_scheduler
         self.optimizer, self.lr_scheduler = self._configure_optimizer_and_scheduler()
         # Initialize evaluator to calculate metrics
-        self.evaluator = Evaluator(map_per_class=self.map_per_class)
+        self.evaluator = Evaluator(
+            map_per_class=self.map_per_class, 
+            id2label=self.model.id2label if hasattr(self.model, 'id2label') else None
+        )
 
         # Lists for tracking loss
         self.train_loss = []
         self.valid_loss = []
 
-    def train(self):
+    def train(self) -> None:
         print(' Start Training '.center(90, '-'))
         self._display_training_params()
 
         for epoch in range(self.n_epochs):
             cur_n_epoch = epoch + 1
+            epoch_results = {
+                'losses': {}
+            }
 
             # Train
-            train_loss = self._train_one_epoch(cur_n_epoch)
+            train_results = self._train_one_epoch(cur_n_epoch)
+            train_loss = train_results['losses']['loss']
+            epoch_results['losses']['train_loss'] = float(train_loss)
             self.train_loss.append(train_loss)   
 
             # Evaluate
             if self.valid_dataloader is not None:
-                valid_loss = self.evaluate_model(self.train_dataloader)
+                valid_results = self.evaluate_model(self.train_dataloader)
+                valid_loss = valid_results['losses']['loss']
+                valid_metrics = valid_results['metrics']
+                epoch_results['losses']['valid_loss'] = float(valid_loss)
+                epoch_results['metrics'] = {k: float(v) for k, v in valid_metrics.items()}
                 self.valid_loss.append(valid_loss)
 
             # Update learning rate if provided scheduler
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
 
+            # Log epoch results to wandb
+            if self.wandb_logger is not None:
+                self.wandb_logger.log_results(epoch_results, stage='epoch')
+
+            # Save epoch model's checkpoint
             if self.checkpoint_manager is not None:
                 self.checkpoint_manager.save_checkpoint(self.model, epoch=cur_n_epoch)
 
         print(' End Training '.center(90, '-'))
 
-    def _train_one_epoch(self, cur_n_epoch):
+    def _train_one_epoch(self, cur_n_epoch) -> dict[str, float]:
         running_loss = 0
         running_total_samples = 0
 
@@ -73,31 +90,54 @@ class TransformerTrainer:
             torch.cuda.empty_cache()  # Clear the CUDA cache
             self.model.train()        # Set the model to train mode
             cur_n_iteration = iteration + 1
+            iteration_results = {
+                'losses': {}
+            }
 
             # Get the model's predictions for a batch, calculate losses and make the common steps
             outputs = self.model(batch_image, batch_target)
             loss = outputs.loss
             self._common_steps(loss)
 
-            print('\nlogitslogitslogitslogitslogitslogitslogits')
-            print(outputs.logits.argmax(dim=-1))
-            print('\nloss')
-            print(outputs.loss)
-            break
-            
             # Add loss to the total loss for current epoch
-            running_loss += loss
+            iteration_loss = loss.detach().cpu().item()
+            running_loss += iteration_loss
             running_total_samples += len(batch_image)
+
+            # Log ireation results to wandb
+            iteration_results['losses']['loss'] = float(iteration_loss)
+            if self.wandb_logger is not None:
+                self.wandb_logger.log_results(iteration_results, stage='iteration')
 
             # Model validation with specified val_frequency
             if self.val_frequency is not None and (cur_n_iteration % self.val_frequency) == 0:
-                freq_val_loss  =  self.evaluate_model(self.valid_dataloader)
-                avg_train_loss = running_loss / running_total_samples
+                freq_results = {
+                    'losses': {}
+                }
+                
+                freq_train_loss = running_loss / running_total_samples
+                freq_results['losses']['train_loss'] = float(freq_train_loss)
 
+                freq_val_results = self.evaluate_model(self.valid_dataloader)
+                freq_val_loss = freq_val_results['losses']['loss']
+                freq_metrics = freq_val_results['metrics']
+                freq_results['losses']['val_loss'] = float(freq_val_loss)
+                freq_results['metrics'] = {k: float(v) for k, v in freq_metrics.items()}
+
+                # Log frequency results to wandb
+                if self.wandb_logger is not None:
+                    self.wandb_logger.log_results(freq_results, stage=f'frequency_{self.val_frequency}')
+
+                # Save frequency model's checkpoint
                 if self.checkpoint_manager is not None:
                     self.checkpoint_manager.save_checkpoint(self.model, epoch=cur_n_epoch, iteration=cur_n_iteration)
 
-        return running_loss / len(self.train_dataloader)
+            avg_train_loss = running_loss / running_total_samples
+        return {
+            'losses': {
+                'loss': avg_train_loss
+            }
+        }
     
     @torch.no_grad()
     def evaluate_model(self, dataloader: DataLoader):
@@ -105,6 +145,7 @@ class TransformerTrainer:
         self.model.eval()  # Set the model to valid mode
 
         running_loss = 0
+        running_box_loss = 0
         all_preds = []
         all_targets = []
         
@@ -112,9 +153,8 @@ class TransformerTrainer:
         for (batch_image, batch_target) in tqdm(dataloader, total=len(dataloader), desc='Evaluating model'):
             outputs = self.model(batch_image, batch_target)
             loss = outputs.loss
-            running_loss += loss
+            running_loss += loss.cpu().item()
 
-            # if self.wandb_logger is not None:
             preds    = self._postprocess_outputs_for_evaluator(outputs)
             targets  = self._postprocess_targets_for_evaluator(batch_target)
 
@@ -122,12 +162,15 @@ class TransformerTrainer:
             all_targets.extend(targets)
         
         map_metrics = self.evaluator.compute_metrics(all_preds, all_targets)
-
-        print('mapmapmapmapmapmapmapmapmapmapmapmapmapmapmapmapmapmapmap')
-        print(map_metrics)
+        avg_valid_loss = running_loss / len(dataloader)
 
         self.model.train()
-        return running_loss / len(dataloader)
+        return {
+            'losses': {
+                'loss': avg_valid_loss
+            },
+            'metrics': map_metrics
+        }
 
     def _common_steps(self, loss):
         self.optimizer.zero_grad()
@@ -137,16 +180,11 @@ class TransformerTrainer:
     def _postprocess_targets_for_evaluator(self, batch_target: list[dict[str, torch.Tensor]]):
         targets_for_evaluator = [
             {
-                'boxes': torch.stack([img_ann['bbox'] for img_ann in img_target['annotations']]),
-                'labels': torch.tensor([img_ann['category_id'] for img_ann in img_target['annotations']])
+                'boxes': torch.stack([img_ann['bbox'] for img_ann in img_target['annotations']]).detach().cpu(),
+                'labels': torch.tensor([img_ann['category_id'] for img_ann in img_target['annotations']]).detach().cpu()
             }
             for img_target in batch_target
         ]
-        print('target_boxestarget_boxestarget_boxestarget_boxestarget_boxestarget_boxestarget_boxestarget_boxes')
-        print([t['boxes'] for t in targets_for_evaluator])
-        print('target_labelstarget_labelstarget_labelstarget_labelstarget_labelstarget_labelstarget_labels')
-        print([t['labels'] for t in targets_for_evaluator])
-
         return targets_for_evaluator  
     
     def _postprocess_outputs_for_evaluator(self, outputs: BaseModelOutput):
@@ -162,13 +200,9 @@ class TransformerTrainer:
         # Filter classes where cls_id != 0 (Background)
         score_threshold = 0.3
         keep_mask  = ((cls_ids != 0) & (scores >= score_threshold))
-        print('sumsumsumsumsumsumsumsumsumsumsumsumsumsumsum')
-        print(torch.sum(keep_mask))
         scores     = scores[keep_mask]
         cls_ids    = cls_ids[keep_mask]
         pred_boxes = raw_pred_boxes[keep_mask]
-        print('cls+idscls+idscls+idscls+idscls+idscls+idscls+idscls+idscls+ids')
-        print(cls_ids)
 
         # Add batch dimension for single image
         scores     = scores.unsqueeze(0) if scores.ndim == 1 else scores
@@ -188,12 +222,7 @@ class TransformerTrainer:
             }
             for img_pred_boxes, img_scores, img_cls_ids, resized_size, orig_size
             in zip(pred_boxes, scores, cls_ids, resized_sizes, orig_sizes)
-        ]
-        print('pred_bboxespred_bboxespred_bboxespred_bboxespred_bboxespred_bboxespred_bboxes')
-        print([t['boxes'] for t in preds_for_evaluator])
-        print('pred_labelspred_labelspred_labelspred_labelspred_labelspred_labelspred_labels')
-        print([t['labels'] for t in preds_for_evaluator])
-        
+        ]      
         return preds_for_evaluator
 
     def _convert_pred_boxes_for_evaluator(self, pred_boxes: torch.Tensor, resized_size: tuple[int, int], target_size: tuple[int, int]):

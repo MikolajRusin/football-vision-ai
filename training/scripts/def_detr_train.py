@@ -83,8 +83,8 @@ def main():
     wandb_logger = None
     if CONFIG.training.log_metrics:
         wandb_logger = WandbLogger(
-            project_name=CONFIG.wandb_logger.project_name, 
-            project_config=OmegaConf.to_container(CONFIG.wandb_logger.model_config, resolve=True)  # Convert to dict
+            project_name=CONFIG.wandb_logger.project_name 
+            #project_config=OmegaConf.to_container(CONFIG.wandb_logger.model_config, resolve=True)  # Convert to dict
         )
 
     # CheckpointManager
