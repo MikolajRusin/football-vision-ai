@@ -16,11 +16,13 @@ class WandbLogger:
         )
 
     def log_results(self, results: dict[str, dict[str, float]], stage: str='epoch'):
+        learning_rates = {f'learning_rates/{k}': v for k, v in results['learning_rates'].items()} if 'learning_rates' in results else {}
         losses = {f'{stage}/{k}': v for k, v in results['losses'].items()} if 'losses' in results else {}
         metrics = {f'{stage}/{k}': v for k, v in results['metrics'].items()} if 'metrics' in results else {}
 
         if losses or metrics:
             self.run.log({
+                **learning_rates,
                 **losses,
                 **metrics
             })
