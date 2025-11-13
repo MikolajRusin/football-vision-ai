@@ -66,7 +66,8 @@ class ModelCheckpointManager:
         checkpoint_path = self.checkpoint_dir_path / checkpoint_name
 
         checkpoint = {
-            # 'model_state_dict': model.model.state_dict() if hasattr(model, 'model') else model.state_dict(),
+            'model_state_dict': model.model.state_dict() if hasattr(model, 'model') else model.state_dict(),
+            'config': model.model.config if hasattr(model, 'config') else model.config,
             'epoch': epoch,
             'iteartion': iteration
         }
