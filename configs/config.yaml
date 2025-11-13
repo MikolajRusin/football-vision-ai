@@ -9,19 +9,19 @@ paths:
     annotations: '${paths.project_root}/data/valid/coco_annotations/annotations.json'
 
 training:
-  num_epochs: 1000
-  batch_size: 1
-  train_set_ratio: 2
-  valid_set_ratio: 2
-  val_frequency: null
-  save_checkpoints: false
-  checkpoint_dir_path: null
-  max_checkpoints: 5
+  num_epochs: 20
+  batch_size: 2
+  train_set_ratio: null  # If null then use full dataset
+  valid_set_ratio: null  # If null then use full dataset
+  val_frequency: 60
+  save_checkpoints: true
+  checkpoint_dir_path: null  # If save_checkpoints = True
+  max_checkpoints: 5         # If save_checkpoints = True
   log_metrics: true
   map_per_class: true  # If log_metrics = True
-  shuffle: false
+  shuffle: true
   desire_bbox_format: xywh
-  augmentation: false
+  augmentation: true
   pin_memory: true
   device: 'cuda'
 
@@ -40,13 +40,13 @@ model:
 optimizer:
   type: adamw  # Default
   params:
-    lr: 5e-6
-    backbone_lr: 5e-6
+    lr: 5e-5
+    backbone_lr: 1e-6
     weight_decay: 0.01
 
 # Scheduler configuration
 scheduler:
-  type: null  # If you don't want to use scheduler the set the type as null
+  type: cosine_annealing  # If you don't want to use scheduler the set the type as null
   params:
     T_max: ${training.num_epochs}
     eta_min: 1e-6
