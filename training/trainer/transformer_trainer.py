@@ -50,7 +50,6 @@ class TransformerTrainer:
         for epoch in range(self.n_epochs):
             cur_n_epoch = epoch + 1
             epoch_results = {
-                'learning_rates': {},
                 'losses': {}
             }
 
@@ -76,6 +75,7 @@ class TransformerTrainer:
 
             # Update learning rate if provided scheduler
             if self.lr_scheduler is not None:
+                epoch_results['learning_rates'] = {}
                 curr_learning_rates = self.lr_scheduler.get_last_lr()
                 if len(curr_learning_rates) == 2:
                     epoch_results['learning_rates']['backbone_lr'] = float(curr_learning_rates[0])
@@ -129,7 +129,7 @@ class TransformerTrainer:
                 iteration_results['losses']['loss'] = float(iteration_loss)
                 iteration_results['losses']['bbox_loss'] = float(iteration_bbox_loss)
                 self.wandb_logger.log_results(iteration_results, stage='iteration')
-
+                            
             # Model validation with specified val_frequency
             if self.val_frequency is not None and (cur_n_iteration % self.val_frequency) == 0:
                 freq_results = {
