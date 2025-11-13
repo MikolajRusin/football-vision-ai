@@ -65,7 +65,7 @@ class TransformerTrainer:
 
             # Evaluate
             if self.valid_dataloader is not None:
-                valid_results = self.evaluate_model(self.train_dataloader)
+                valid_results = self.evaluate_model(self.valid_dataloader)
                 valid_loss = valid_results['losses']['loss']
                 valid_bbox_loss = valid_results['losses']['bbox_loss']
                 valid_metrics = valid_results['metrics']
@@ -77,9 +77,11 @@ class TransformerTrainer:
             # Update learning rate if provided scheduler
             if self.lr_scheduler is not None:
                 curr_learning_rates = self.lr_scheduler.get_last_lr()
-                epoch_results['learning_rates']['lr'] = float(curr_learning_rates[0])
                 if len(curr_learning_rates) == 2:
-                    epoch_results['learning_rates']['backbone_lr'] = float(curr_learning_rates[1])
+                    epoch_results['learning_rates']['backbone_lr'] = float(curr_learning_rates[0])
+                    epoch_results['learning_rates']['lr'] = float(curr_learning_rates[1])
+                else:
+                    epoch_results['learning_rates']['lr'] = float(curr_learning_rates[0])
                 self.lr_scheduler.step()
 
             # Log epoch results to wandb
@@ -227,23 +229,21 @@ class TransformerTrainer:
         resized_sizes   = outputs.size
         orig_sizes      = outputs.orig_size
 
-        # Convert logits into scores and predicted class_ids
         preds = raw_logits.softmax(-1)
         scores, cls_ids = preds.max(-1)
 
-        # Filter classes where cls_id != 0 (Background)
         score_threshold = 0.3
-        keep_mask  = ((cls_ids != 0) & (scores >= score_threshold))
-        scores     = scores[keep_mask]
-        cls_ids    = cls_ids[keep_mask]
-        pred_boxes = raw_pred_boxes[keep_mask]
 
-        # Add batch dimension for single image
-        scores     = scores.unsqueeze(0) if scores.ndim == 1 else scores
-        cls_ids    = cls_ids.unsqueeze(0) if cls_ids.ndim == 1 else cls_ids
-        pred_boxes = pred_boxes.unsqueeze(0) if pred_boxes.ndim == 2 else pred_boxes
-        
-        # Combine all data
+        batch_boxes  = []
+        batch_scores = []
+        batch_labels = []
+
+        for i in range(raw_pred_boxes.shape[0]):
+            keep_mask = (cls_ids[i] != 0) & (scores[i] >= score_threshold)
+            batch_boxes.append(raw_pred_boxes[i][keep_mask])
+            batch_scores.append(scores[i][keep_mask])
+            batch_labels.append(cls_ids[i][keep_mask])
+
         preds_for_evaluator = [
             {
                 'boxes': self._convert_pred_boxes_for_evaluator(
@@ -255,8 +255,9 @@ class TransformerTrainer:
                 'labels': img_cls_ids.detach().cpu()
             }
             for img_pred_boxes, img_scores, img_cls_ids, resized_size, orig_size
-            in zip(pred_boxes, scores, cls_ids, resized_sizes, orig_sizes)
-        ]      
+            in zip(batch_boxes, batch_scores, batch_labels, resized_sizes, orig_sizes)
+        ]
+
         return preds_for_evaluator
 
     def _convert_pred_boxes_for_evaluator(self, pred_boxes: torch.Tensor, resized_size: tuple[int, int], target_size: tuple[int, int]):
