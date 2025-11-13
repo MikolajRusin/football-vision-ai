@@ -2,6 +2,7 @@ from transformers import DeformableDetrImageProcessor, DeformableDetrConfig, Def
 from transformers.modeling_outputs import BaseModelOutput
 import torch
 import torch.nn as nn
+from pathlib import Path
 from typing import Any
 
 class DefDetrModel(nn.Module):
@@ -35,6 +36,15 @@ class DefDetrModel(nn.Module):
         if self.id2label is not None:
             self._reset_class_embeddings(model)
         return model
+
+    def load_model_checkpoint(self, checkpoint_path: str | Path):
+        checkpoint = torch.load(str(checkpoint_path), map_location=self.device)
+        config     = checkpoint['config']
+        state_dict = checkpoint['model_state_dict']
+
+        self.config = config
+        self.model.config = config
+        self.model.load_state_dict(state_dict)
 
     def forward(self, images: list[torch.Tensor], targets: list[dict[str, Any]] | None = None) -> BaseModelOutput:
         if targets is not None:
