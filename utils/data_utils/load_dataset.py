@@ -76,7 +76,7 @@ class LoadDataset(Dataset):
         image = self._load_image(id)
         bboxes, category_ids, areas = self._load_anns(id)
 
-        # Albumentatins
+        # Albumentations
         if self.transforms is not None:
             # Convert to numpy array
             bboxes       = np.array(bboxes, dtype=np.float32)
@@ -86,7 +86,8 @@ class LoadDataset(Dataset):
             image        = transformed['image']
             bboxes       = transformed['bboxes']
             category_ids = transformed['category_ids']
-            # Recalculate are after transformation
+            # Recalculate area after transformation
+            bboxes = np.array(bboxes, dtype=np.float32)
             width  = bboxes[:, 2]
             height = bboxes[:, 3]
             areas  = width * height
