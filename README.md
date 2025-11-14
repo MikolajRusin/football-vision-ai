@@ -15,6 +15,8 @@ Over time, the project has been refactored to improve its performance and extend
 - [Project Background](#project-background)
 - [Project Structure](#project-structure)
 - [Annotating Data](#annotating-data)
+- [Data Loader](#data-loader)
+- [Training Transformer Models](#training-transformer-models)
 
 ## Project Structure
 ```bash
@@ -121,3 +123,5 @@ you will find an `annotations.json` file with the corresponding annotations for 
 │  └── origin_videos (5 videos)
 │
 ```
+
+## Data Loader
