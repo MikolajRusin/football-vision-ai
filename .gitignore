@@ -5,3 +5,4 @@ requirements_download_data.txt
 /data
 __pycache__
 wandb
+/checkpoints
