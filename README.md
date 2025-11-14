@@ -19,31 +19,31 @@ Over time, the project has been refactored to improve its performance and extend
 ## Project Structure
 ```bash
 football-ai/
-├── configs/                      # Configuration files
-│   └── config.yaml               # Main configuration file
-├── logger/                       # Logging utilities
-│   └── wandb_logger.py           # Integration with WandB for logging
-├── manager/                      # Checkpoint and model management
-│   └── checkpoint_manager.py     # Checkpoint management functionality
-├── models/                       # Model definitions and configurations
-│   └── def_detr_model.py         # Model architecture for DETR
-├── notebooks/                    # Jupyter Notebooks for experimentation
-│   ├── annotate_data.ipynb       # Notebook for data annotation
-│   ├── download_data.ipynb       # Notebook for data download
-│   └── test_load_dataset.ipynb   # Notebook for testing dataset loading
-├── training/                     # Training scripts and configurations
-│   ├── scripts/                  # Additional scripts for training
-│   │   └── def_detr_train.py     # Main training script
-│   └── trainer/                  # Trainer classes and utilities
-│       ├── evaluator.py          # Model evaluation functionality
-│       └── transformer_trainer.py# Transformer model trainer
-├── utils/                        # Utility functions and helpers
-│   ├── data_utils/               # Data handling utilities
-│   │   ├── load_dataloader.py    # Dataloader management
-│   │   └── load_dataset.py       # Dataset loading utilities
-│   └── box_ops.py                # Bounding box operations
-├── .gitignore                    # Git ignore file
-└── .venv/                        # Virtual environment for project dependencies
+├── configs/                       # Configuration files
+│   └── config.yaml                # Main configuration file
+├── logger/                        # Logging utilities
+│   └── wandb_logger.py            # Integration with WandB for logging
+├── manager/                       # Checkpoint and model management
+│   └── checkpoint_manager.py      # Checkpoint management functionality
+├── models/                        # Model definitions and configurations
+│   └── def_detr_model.py          # Model architecture for DETR
+├── notebooks/                     # Jupyter Notebooks for experimentation
+│   ├── annotate_data.ipynb        # Notebook for data annotation
+│   ├── download_data.ipynb        # Notebook for data download
+│   └── test_load_dataset.ipynb    # Notebook for testing dataset loading
+├── training/                      # Training scripts and configurations
+│   ├── scripts/                   # Additional scripts for training
+│   │   └── def_detr_train.py      # Main training script
+│   └── trainer/                   # Trainer classes and utilities
+│       ├── evaluator.py           # Model evaluation functionality
+│       └── transformer_trainer.py # Transformer model trainer
+├── utils/                         # Utility functions and helpers
+│   ├── data_utils/                # Data handling utilities
+│   │   ├── load_dataloader.py     # Dataloader management
+│   │   └── load_dataset.py        # Dataset loading utilities
+│   └── box_ops.py                 # Bounding box operations
+├── .gitignore                     # Git ignore file
+└── .venv/                         # Virtual environment for project dependencies
 ```
 
 ## Setting Environment Variables
