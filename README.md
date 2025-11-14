@@ -14,6 +14,7 @@ Over time, the project has been refactored to improve its performance and extend
 - [Overview](#overview)
 - [Project Background](#project-background)
 - [Project Structure](#project-structure)
+- [Annotating Data](#annotating-data)
 
 ## Project Structure
 ```bash
