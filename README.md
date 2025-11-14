@@ -44,9 +44,19 @@ football-ai/
 ├── .gitignore                    # Git ignore file
 └── .venv/                        # Virtual environment for project dependencies
 ```
-  
-## Downloading Data
 
+## Setting Environment Variables
+Before downloading and training data, we need to set up the API keys that will be used in this project.
+
+1. **ROBOFLOW_API_KEY**: This key is required because we will be downloading data and using models from the Roboflow website.
+2. **WANDB_API_KEY**: This key is optional. You only need it if you want to track your training results with Weights & Biases (WandB). If you don’t plan to use WandB for logging or model tracking, you can skip this step.
+
+To set up these variables, create a `.env` file in the project root and paste your API keys as follows:
+```bash
+ROBOFLOW_API_KEY=<your roboflow api key>
+WANDB_API_KEY=<your wandb api key>
+```
+## Downloading Data
 The dataset for this project has been obtained from two sources:
 
 1. **Google Drive**: The data consists of short video clips from football matches, which were used for training and evaluation. To prevent almost identical frames from being selected, every 5th frame was chosen, with the frame selection controlled by setting `stride=5`. The data processing and splitting into folders is done in the notebook `notebooks/download_data.ipynb`.
@@ -66,3 +76,4 @@ Both datasets are downloaded and processed in the notebook `notebooks/download_d
 │  └── origin_videos (5 videos)
 │
 ```
+## Annotating Data
