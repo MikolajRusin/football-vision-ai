@@ -67,13 +67,56 @@ Both datasets are downloaded and processed in the notebook `notebooks/download_d
 ```bash
 ├── data/
 │  ├── train/ 
-│  │   └── images (905 images)
+│  │   └── images/ (905 images)
+│  │       ├── image_1.jpg
+│  │       ├── image_2.jpg
+│  │       │       ...
+│  │       └── image_xyz.jpg
 │  └── valid/
-│  │   └── images (124 images)
+│  │   └── images/ (124 images)
+│  │       ├── image_1.jpg
+│  │       ├── image_2.jpg
+│  │       │       ...
+│  │       └── image_xyz.jpg
 │  ├── test/
-│  │   └── images  (93 images)
+│  │   └── images/  (93 images)
+│  │       ├── image_1.jpg
+│  │       ├── image_2.jpg
+│  │       │       ...
+│  │       └── image_xyz.jpg
 │  │   
 │  └── origin_videos (5 videos)
 │
 ```
+  
 ## Annotating Data
+Once we have downloaded the data, we can proceed to annotate it. The notebook to annotate the data can be found in `notebooks/annotate_data.ipynb`.
+
+To annotate the data, I used a pre-trained YOLO model, specifically trained for this type of image. This model was sourced from Roboflow. 
+First, the model was tested on a few samples to verify its performance on the dataset. After confirming that the model performed well, the entire dataset was annotated with bounding boxes and labels.
+
+The most important steps at this stage are:
+1. The confidence threshold was set to 0.3 to avoid poor predictions and reduce clutter in the dataset.
+2. The Intersection over Union (IoU) threshold was set to 0.5 to eliminate duplicate predictions and select the most confident prediction for each object.
+3. The predictions were saved as the COCO JSON format, with bounding box coordinates (x, y, width, height) in absolute pixel values, where (x, y) refers to the top-left corner of the box.
+
+After running the notebook, each folder in the `data` directory will contain its own `coco_annotations` folder. Inside each `coco_annotations` folder, 
+you will find an `annotations.json` file with the corresponding annotations for the images in that folder. The data folder should look like the following structure:
+```bash
+├── data/
+│  ├── train/ 
+│  │   └── images/
+│  │   └── coco_annotations/
+│  │       └── annotations.json
+│  └── valid/
+│  │   └── images/
+│  │   └── coco_annotations/
+│  │       └── annotations.json
+│  ├── test/
+│  │   └── images/
+│  │   └── coco_annotations/
+│  │       └── annotations.json
+│  │   
+│  └── origin_videos (5 videos)
+│
+```
