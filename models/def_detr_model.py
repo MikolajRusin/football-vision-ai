@@ -42,8 +42,14 @@ class DefDetrModel(nn.Module):
         config     = checkpoint['config']
         state_dict = checkpoint['model_state_dict']
 
-        self.config = config
-        self.model.config = config
+        if self.config.num_labels != config.num_labels:
+            self.config = config
+            self.id2label = self.config.id2label
+            self.model = self._load_model().to(self.device)
+        else:
+            self.config = config
+            self.model.config = config
+        
         self.model.load_state_dict(state_dict)
 
     def forward(self, images: list[torch.Tensor], targets: list[dict[str, Any]] | None = None) -> BaseModelOutput:
