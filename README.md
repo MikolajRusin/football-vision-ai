@@ -44,11 +44,7 @@ football-ai/
 ├── .gitignore                    # Git ignore file
 └── .venv/                        # Virtual environment for project dependencies
 ```
-
-## Downloading Data
-
-The dataset for this project has been obtained from two sources:
-
+  
 ## Downloading Data
 
 The dataset for this project has been obtained from two sources:
