@@ -99,3 +99,19 @@ def cxcywh2xywh(bboxes: np.ndarray | torch.Tensor):
     bboxes[:, 0] = bboxes[:, 0] - (bboxes[:, 2] / 2)
     bboxes[:, 1] = bboxes[:, 1] - (bboxes[:, 3] / 2)
     return bboxes
+
+def cxcywh2xyxy(bboxes: np.ndarray | torch.Tensor):
+    if bboxes is None or len(bboxes) == 0:
+        if isinstance(bboxes, torch.Tensor):
+            return torch.zeros((0, 4), dtype=torch.float32)
+        return np.zeros((0, 4), dtype=np.float32)
+
+    is_tensor = isinstance(bboxes, torch.Tensor)
+    bboxes = bboxes.clone().float() if is_tensor else bboxes.astype(np.float32)
+
+    center_x, center_y, width, height = bboxes.T
+    x_min = center_x - (width / 2)
+    y_min = center_y - (height / 2)
+    x_max = center_x + (width / 2)
+    y_max = center_y + (height / 2)
+    return torch.stack([x_min, y_min, x_max, y_max], dim=1) if is_tensor else np.stack([x_min, y_min, x_max, y_max], axis=1)
