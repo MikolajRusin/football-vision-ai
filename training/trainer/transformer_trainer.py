@@ -263,7 +263,7 @@ class TransformerTrainer:
         return preds_for_evaluator
 
     def _convert_pred_boxes_for_evaluator(self, pred_boxes: torch.Tensor, resized_size: tuple[int, int], target_size: tuple[int, int]):
-        if self.model_type == 'detr':
+        if self.model_type in ['detr', 'deta']:
             pred_boxes = cxcywh2xywh(pred_boxes)
             pred_boxes = denormalize_bboxes(pred_boxes, resized_size[0], resized_size[1])
             pred_boxes = resize_bboxes(pred_boxes, resized_size, target_size)
