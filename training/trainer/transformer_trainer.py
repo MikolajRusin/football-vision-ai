@@ -16,13 +16,14 @@ class TransformerTrainer:
     model: nn.Module
     train_dataloader: DataLoader
     valid_dataloader: DataLoader | None = None
-    val_frequency: int | None = None
+    frequency_validating: int | None = None
     n_epochs: int = 5
     optimizer: str = 'adamw'
     optimizer_params: dict | None = None
     lr_scheduler: str | None = None
     lr_scheduler_params: dict | None = None
     checkpoint_manager: ModelCheckpointManager | None = None
+    frequency_saving_checkpoint: int | None = None
     wandb_logger: WandbLogger | None = None
     map_per_class: bool = False
 
@@ -130,8 +131,8 @@ class TransformerTrainer:
                 iteration_results['losses']['bbox_loss'] = float(iteration_bbox_loss)
                 self.wandb_logger.log_results(iteration_results, stage='iteration')
                             
-            # Model validation with specified val_frequency
-            if self.val_frequency is not None and (cur_n_iteration % self.val_frequency) == 0:
+            # Model validation with specified frequency_validating
+            if self.frequency_validating is not None and (cur_n_iteration % self.frequency_validating) == 0:
                 freq_results = {
                     'losses': {}
                 }
@@ -154,11 +155,12 @@ class TransformerTrainer:
 
                 # Log frequency results to wandb
                 if self.wandb_logger is not None:
-                    self.wandb_logger.log_results(freq_results, stage=f'frequency_{self.val_frequency}')
+                    self.wandb_logger.log_results(freq_results, stage=f'frequency_{self.frequency_validating}')
 
-                # Save frequency model's checkpoint
-                if self.checkpoint_manager is not None:
-                    self.checkpoint_manager.save_checkpoint(self.model, epoch=cur_n_epoch, iteration=cur_n_iteration)
+            # Save frequency model's checkpoint
+            if (self.frequency_saving_checkpoint is not None and self.checkpoint_manager is not None)\
+                and (cur_n_iteration % self.frequency_saving_checkpoint) == 0:
+                self.checkpoint_manager.save_checkpoint(self.model, epoch=cur_n_epoch, iteration=cur_n_iteration)
 
             avg_train_loss = running_loss / running_total_samples
             avg_train_bbox_loss = running_bbox_loss / running_total_samples
@@ -322,8 +324,8 @@ class TransformerTrainer:
         if self.valid_dataloader is not None:
             print(f'Number of images in valid dataloader: {len(self.valid_dataloader)}')
         print(f'Number of training epochs: {self.n_epochs}')
-        if self.val_frequency is not None:
-            print(f'Frequency of evaluating model: {self.val_frequency}')
+        if self.frequency_validating is not None:
+            print(f'Frequency of evaluating model: {self.frequency_validating}')
         print(f'Used optimizer: {self.optimizer.__class__.__name__}')
         print(f"Optimizer's params: {self.optimizer_params}")
         if self.lr_scheduler is not None:
