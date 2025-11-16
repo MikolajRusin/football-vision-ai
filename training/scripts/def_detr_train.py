@@ -98,8 +98,9 @@ def main():
     # Model
     deformable_detr_model = DefDetrModel(
         model_id=CONFIG.model.model_id, 
-        id2label=CONFIG.model.id2label, 
-        device=CONFIG.training.device
+        id2label=OmegaConf.to_container(CONFIG.model.id2label), 
+        device=CONFIG.training.device,
+        reset_head=CONFIG.model.reset_head
     )
 
     # Trainer
@@ -107,13 +108,14 @@ def main():
         model=deformable_detr_model,
         train_dataloader=train_dataloader,
         valid_dataloader=valid_dataloader,
-        val_frequency=CONFIG.training.val_frequency,
+        frequency_validating=CONFIG.training.frequency_validating,
         n_epochs=CONFIG.training.num_epochs,
         optimizer=CONFIG.optimizer.type,
         optimizer_params=CONFIG.optimizer.params,
         lr_scheduler=CONFIG.scheduler.type if getattr(CONFIG.scheduler, 'type', None) else None,
         lr_scheduler_params=CONFIG.scheduler.params if getattr(CONFIG.scheduler, 'type', None) else None,
         checkpoint_manager=checkpoint_manager,
+        frequency_saving_checkpoint=CONFIG.training.frequency_saving_checkpoint,
         wandb_logger=wandb_logger,
         map_per_class=CONFIG.training.map_per_class
     )
