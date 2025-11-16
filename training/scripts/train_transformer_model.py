@@ -6,6 +6,7 @@ from manager.checkpoint_manager import ModelCheckpointManager
 from utils.data_utils.load_dataloader import load_dataloader
 from logger.wandb_logger import WandbLogger
 from models.def_detr_model import DefDetrModel
+from models.deta_swin_model import DetaSwinModel
 from training.trainer.transformer_trainer import TransformerTrainer
 from dotenv import load_dotenv, find_dotenv
 from omegaconf import OmegaConf
@@ -84,7 +85,6 @@ def main():
     if CONFIG.training.log_metrics:
         wandb_logger = WandbLogger(
             project_name=CONFIG.wandb_logger.project_name 
-            #project_config=OmegaConf.to_container(CONFIG.wandb_logger.model_config, resolve=True)  # Convert to dict
         )
 
     # CheckpointManager
@@ -96,16 +96,24 @@ def main():
         )
     
     # Model
-    deformable_detr_model = DefDetrModel(
-        model_id=CONFIG.model.model_id, 
-        id2label=OmegaConf.to_container(CONFIG.model.id2label), 
-        device=CONFIG.training.device,
-        reset_head=CONFIG.model.reset_head
-    )
+    if 'detr' in CONFIG.model.model_id:
+        model = DefDetrModel(
+            model_id=CONFIG.model.model_id, 
+            id2label=OmegaConf.to_container(CONFIG.model.id2label), 
+            device=CONFIG.training.device,
+            reset_head=CONFIG.model.reset_head
+        )
+    elif 'deta' in CONFIG.model.model_id:
+        model = DetaSwinModel(
+            model_id=CONFIG.model.model_id, 
+            id2label=OmegaConf.to_container(CONFIG.model.id2label), 
+            device=CONFIG.training.device,
+            reset_head=CONFIG.model.reset_head
+        )
 
     # Trainer
     trainer = TransformerTrainer(
-        model=deformable_detr_model,
+        model=model,
         train_dataloader=train_dataloader,
         valid_dataloader=valid_dataloader,
         frequency_validating=CONFIG.training.frequency_validating,
