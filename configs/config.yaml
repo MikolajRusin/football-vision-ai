@@ -13,10 +13,11 @@ training:
   batch_size: 2
   train_set_ratio: null  # If null then use full dataset
   valid_set_ratio: null  # If null then use full dataset
-  val_frequency: 60
+  frequency_validating: null
   save_checkpoints: true
-  checkpoint_dir_path: null  # If save_checkpoints = True
-  max_checkpoints: 5         # If save_checkpoints = True
+  checkpoint_dir_path: null          # If save_checkpoints = True
+  max_checkpoints: 5                 # If save_checkpoints = True
+  frequency_saving_checkpoint: 200   # If save_checkpoints = True
   log_metrics: true
   map_per_class: true  # If log_metrics = True
   shuffle: true
@@ -35,12 +36,13 @@ model:
     3: 'Player'
     4: 'Referee'
   device: ${training.device}
+  reset_head: true
 
 # Optimizer configuration
 optimizer:
   type: adamw  # Default
   params:
-    lr: 5e-5
+    lr: 5e-4
     backbone_lr: 1e-6
     weight_decay: 0.01
 
