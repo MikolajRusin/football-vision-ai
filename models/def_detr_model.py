@@ -26,6 +26,8 @@ class DefDetrModel(nn.Module):
             config.id2label   = self.id2label
             config.label2id   = {v: k for k, v in self.id2label.items()}
             config.num_labels = len(self.id2label)
+        else:
+            self.id2label = config.id2label
         return config
 
     def _reset_class_embeddings(self, model):
