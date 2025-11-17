@@ -6,7 +6,7 @@ from manager.checkpoint_manager import ModelCheckpointManager
 from utils.data_utils.load_dataloader import load_dataloader
 from logger.wandb_logger import WandbLogger
 from models.def_detr_model import DefDetrModel
-from models.deta_swin_model import DetaSwinModel
+from models.rt_detr_v2_model import RTDetrV2Model
 from training.trainer.transformer_trainer import TransformerTrainer
 from dotenv import load_dotenv, find_dotenv
 from omegaconf import OmegaConf
@@ -96,15 +96,15 @@ def main():
         )
     
     # Model
-    if 'detr' in CONFIG.model.model_id:
-        model = DefDetrModel(
+    if 'rtdetr' in CONFIG.model.model_id:
+        model = RTDetrV2Model(
             model_id=CONFIG.model.model_id, 
             id2label=OmegaConf.to_container(CONFIG.model.id2label), 
             device=CONFIG.training.device,
             reset_head=CONFIG.model.reset_head
         )
-    elif 'deta' in CONFIG.model.model_id:
-        model = DetaSwinModel(
+    elif 'detr' in CONFIG.model.model_id:
+        model = DefDetrModel(
             model_id=CONFIG.model.model_id, 
             id2label=OmegaConf.to_container(CONFIG.model.id2label), 
             device=CONFIG.training.device,
@@ -117,6 +117,7 @@ def main():
         train_dataloader=train_dataloader,
         valid_dataloader=valid_dataloader,
         frequency_validating=CONFIG.training.frequency_validating,
+        score_threshold=CONFIG.training.score_threshold,
         n_epochs=CONFIG.training.num_epochs,
         optimizer=CONFIG.optimizer.type,
         optimizer_params=CONFIG.optimizer.params,
