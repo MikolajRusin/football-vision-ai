@@ -14,6 +14,7 @@ training:
   train_set_ratio: null  # If null then use full dataset
   valid_set_ratio: null  # If null then use full dataset
   frequency_validating: null
+  score_threshold: 0.3
   save_checkpoints: true
   checkpoint_dir_path: null          # If save_checkpoints = True
   max_checkpoints: 5                 # If save_checkpoints = True
