@@ -9,32 +9,32 @@ paths:
     annotations: '${paths.project_root}/data/valid/coco_annotations/annotations.json'
 
 training:
-  num_epochs: 1000
-  batch_size: 1
-  train_set_ratio: 1  # If null then use full dataset
-  valid_set_ratio: 2  # If null then use full dataset
-  frequency_validating: null
+  num_epochs: 40
+  batch_size: 8
+  train_set_ratio: null  # If null then use full dataset
+  valid_set_ratio: null  # If null then use full dataset
+  frequency_validating: 60
+  score_threshold: 0.3  # For evaluator
   save_checkpoints: true
   checkpoint_dir_path: null          # If save_checkpoints = True
   max_checkpoints: 5                 # If save_checkpoints = True
-  frequency_saving_checkpoint: null  # If save_checkpoints = True
+  frequency_saving_checkpoint: 60    # If save_checkpoints = True
   log_metrics: true
   map_per_class: true  # If log_metrics = True
-  shuffle: false
+  shuffle: true
   desire_bbox_format: xywh
-  augmentation: false
+  augmentation: true
   pin_memory: true
   device: 'cuda'
 
 # Model configuration
 model:
-  model_id: jozhang97/deta-swin-large
+  model_id: PekingU/rtdetr_v2_r18vd
   id2label:
-    0: 'N/A'
-    1: 'Ball'
-    2: 'Goalkeeper'
-    3: 'Player'
-    4: 'Referee'
+    0: 'Ball'
+    1: 'Goalkeeper'
+    2: 'Player'
+    3: 'Referee'
   device: ${training.device}
   reset_head: true
 
@@ -42,8 +42,8 @@ model:
 optimizer:
   type: adamw  # Default
   params:
-    lr: 5e-4
-    backbone_lr: 1e-6
+    lr: 5e-5
+    backbone_lr: 5e-6
     weight_decay: 0.01
 
 # Scheduler configuration
