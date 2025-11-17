@@ -1,4 +1,4 @@
-from transformers import DetaForObjectDetection, DetaImageProcessor, DetaConfig
+from transformers import RTDetrV2ForObjectDetection, RTDetrImageProcessor, RTDetrV2Config
 from transformers.modeling_outputs import BaseModelOutput
 import torch
 import torch.nn as nn
@@ -7,7 +7,7 @@ from typing import Any
 from huggingface_hub import snapshot_download
 from safetensors.torch import load_file
 
-class DetaSwinModel(nn.Module):
+class RTDetrV2Model(nn.Module):
     def __init__(self, model_id: str, id2label: dict[int, str] | None = None, device: str | None = None, reset_head: bool = False):
         super().__init__()
         self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
@@ -18,14 +18,16 @@ class DetaSwinModel(nn.Module):
         # --- load config and model
         self.config = self._load_model_config()
         self.model = self._load_model(reset_head=self.reset_head).to(self.device)
-        self.processor = DetaImageProcessor.from_pretrained(self.model_id, use_fast=True)
+        self.processor = RTDetrImageProcessor.from_pretrained(self.model_id, use_fast=True)
 
     def _load_model_config(self):
-        config = DetaConfig.from_pretrained(self.model_id)
+        config = RTDetrV2Config.from_pretrained(self.model_id)
         if self.id2label is not None:
             config.id2label   = self.id2label
             config.label2id   = {v: k for k, v in self.id2label.items()}
             config.num_labels = len(self.id2label)
+        else:
+            self.id2label = config.id2label
         return config
 
     def _reset_class_embeddings(self, model):
@@ -34,8 +36,8 @@ class DetaSwinModel(nn.Module):
             if model.class_embed[i].bias is not None:
                 nn.init.constant_(model.class_embed[i].bias, 0)
 
-    def _load_model(self, reset_head: bool) -> DetaForObjectDetection:
-        model = DetaForObjectDetection.from_pretrained(
+    def _load_model(self, reset_head: bool) -> RTDetrV2ForObjectDetection:
+        model = RTDetrV2ForObjectDetection.from_pretrained(
             self.model_id, 
             config=self.config, 
             ignore_mismatched_sizes=True
@@ -52,10 +54,10 @@ class DetaSwinModel(nn.Module):
         state_dict = checkpoint['model_state_dict']
 
         if isinstance(config, dict):
-            config = DetaConfig(**config)
-        elif not isinstance(config, DetaConfig):
+            config = RTDetrV2Config(**config)
+        elif not isinstance(config, RTDetrV2Config):
             from omegaconf import OmegaConf
-            config = DetaConfig(**OmegaConf.to_container(config, resolve=True))
+            config = RTDetrV2Config(**OmegaConf.to_container(config, resolve=True))
 
         if self.config.num_labels != config.num_labels:
             self.config = config
@@ -72,8 +74,8 @@ class DetaSwinModel(nn.Module):
     def from_pretrained(cls, repo_id: str, device: str | None = None):
         local_dir = snapshot_download(repo_id=repo_id)
 
-        processor = DetaImageProcessor.from_pretrained(local_dir)
-        config = DetaConfig.from_pretrained(local_dir)
+        processor = RTDetrImageProcessor.from_pretrained(local_dir)
+        config = RTDetrV2Config.from_pretrained(local_dir)
 
         model = cls(
             model_id=local_dir,
@@ -94,9 +96,8 @@ class DetaSwinModel(nn.Module):
         if targets is not None:
             inputs = self.processor(images=images, annotations=targets, return_tensors='pt')
             pixel_values = inputs['pixel_values'].to(self.device)
-            pixel_mask   = inputs['pixel_mask'].to(self.device)
             labels       = [{k: v.to(self.device) for k, v in l.items()} for l in inputs['labels']]
-            outputs = self.model(pixel_values=pixel_values, pixel_mask=pixel_mask, labels=labels)
+            outputs = self.model(pixel_values=pixel_values, labels=labels)
             
             outputs.size = [l['size'].to(self.device) for l in inputs['labels']]
             outputs.orig_size = [l['orig_size'].to(self.device) for l in inputs['labels']]
@@ -104,8 +105,7 @@ class DetaSwinModel(nn.Module):
             with torch.no_grad():
                 inputs = self.processor(images=images, return_tensors='pt')
                 pixel_values = inputs['pixel_values'].to(self.device)
-                pixel_mask   = inputs['pixel_mask'].to(self.device)
-                outputs = self.model(pixel_values=pixel_values, pixel_mask=pixel_mask)
+                outputs = self.model(pixel_values=pixel_values)
                 
                 resized_size = torch.tensor(pixel_values.shape[-2:], device=self.device)
                 outputs.size = [resized_size for _ in range(len(images))]
