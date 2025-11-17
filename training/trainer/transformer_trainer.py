@@ -17,6 +17,7 @@ class TransformerTrainer:
     train_dataloader: DataLoader
     valid_dataloader: DataLoader | None = None
     frequency_validating: int | None = None
+    score_threshold: float = 0.3
     n_epochs: int = 5
     optimizer: str = 'adamw'
     optimizer_params: dict | None = None
@@ -41,8 +42,9 @@ class TransformerTrainer:
 
         # Lists for tracking loss
         self.train_loss = []
+        self.train_bbox_loss = []
         self.valid_loss = []
-        self.bbox_loss  = []
+        self.valid_bbox_loss = []
 
     def train(self) -> None:
         print(' Start Training '.center(90, '-'))
@@ -61,7 +63,7 @@ class TransformerTrainer:
             epoch_results['losses']['train_loss'] = float(train_loss)
             epoch_results['losses']['train_bbox_loss'] = float(train_bbox_loss)
             self.train_loss.append(train_loss)
-            self.bbox_loss.append(train_bbox_loss)
+            self.train_bbox_loss.append(train_bbox_loss)
 
             # Evaluate
             if self.valid_dataloader is not None:
@@ -73,6 +75,7 @@ class TransformerTrainer:
                 epoch_results['losses']['valid_bbox_loss'] = float(valid_bbox_loss)
                 epoch_results['metrics'] = {k: float(v) for k, v in valid_metrics.items()}
                 self.valid_loss.append(valid_loss)
+                self.valid_bbox_loss.append(valid_bbox_loss)
 
             # Update learning rate if provided scheduler
             if self.lr_scheduler is not None:
@@ -178,6 +181,7 @@ class TransformerTrainer:
 
         running_loss = 0
         running_bbox_loss = 0
+        running_total_samples = 0
         all_preds = []
         all_targets = []
         
@@ -191,6 +195,9 @@ class TransformerTrainer:
             bbox_loss = outputs.loss_dict['loss_bbox']
             running_bbox_loss += bbox_loss.cpu().item()
 
+            # Add length of batch for further calculations
+            running_total_samples += len(batch_image)
+
             preds    = self._postprocess_outputs_for_evaluator(outputs)
             targets  = self._postprocess_targets_for_evaluator(batch_target)
 
@@ -198,8 +205,8 @@ class TransformerTrainer:
             all_targets.extend(targets)
         
         map_metrics         = self.evaluator.compute_metrics(all_preds, all_targets)
-        avg_valid_loss      = running_loss / len(dataloader)
-        avg_valid_bbox_loss = running_bbox_loss / len(dataloader)
+        avg_valid_loss      = running_loss / running_total_samples
+        avg_valid_bbox_loss = running_bbox_loss / running_total_samples
 
         self.model.train()
         return {
@@ -234,14 +241,15 @@ class TransformerTrainer:
         preds = raw_logits.softmax(-1)
         scores, cls_ids = preds.max(-1)
 
-        score_threshold = 0.3
-
         batch_boxes  = []
         batch_scores = []
         batch_labels = []
-
         for i in range(raw_pred_boxes.shape[0]):
-            keep_mask = (cls_ids[i] != 0) & (scores[i] >= score_threshold)
+            if 'N/A' in self.model.id2label.values():
+                background_id = 0
+                keep_mask = (cls_ids[i] != background_id) & (scores[i] >= self.score_threshold)
+            else:
+                keep_mask = scores[i] >= self.score_threshold
             batch_boxes.append(raw_pred_boxes[i][keep_mask])
             batch_scores.append(scores[i][keep_mask])
             batch_labels.append(cls_ids[i][keep_mask])
