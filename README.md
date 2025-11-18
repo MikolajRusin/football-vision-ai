@@ -31,14 +31,14 @@ Over time, the project has been refactored to improve its performance and extend
   - [Main Training Configuration](#main-training-configuration)
   - [Training Deformable DETR Model](#training-deformable-detr-model)
     - [Key Features](#key-features-def-detr)
-    - [Used config to train the model](#used-config-to-train-the-model)
+    - [Used config to train the model](#used-config-to-train-the-def-detr-model)
     - [Training Results for Deformable DETR](#training-results-for-def-detr)
     - [Summary](#summary-def-detr)
   - [Training RT-DETRv2 Model](#training-rt-detrv2-model)
-    - [Key Features](#key-features-rt-detr)
-    - [Used config to train the model](#used-config-to-train-the-model)
-    - [Training Results for Deformable DETR](#training-results-for-deformable-detr)
-    - [Summary](#summary)
+    - [Key Features](#key-features-rt-detrv2)
+    - [Used config to train the model](#used-config-to-train-the-rt-detrv2-model)
+    - [Training Results for RT-DETRv2](#training-results-for-rt-detrv2)
+    - [Summary](#summary-rt-detrv2)
 - [Training YOLOv11m Model](#training-yolov11m-model)
   - [Preparing Data for YOLO](#preparing-data-for-yolo)
   - [Training Setup](#training-setup)
@@ -420,7 +420,7 @@ This is especially useful for sharing trained detectors with collaborators.
 
 ---
 
-#### Used config to train the model
+#### Used config to train the Def DETR model
 
 ```yaml
 # Main configuration for the training process
@@ -564,15 +564,21 @@ Despite the long training time on an RTX 3090 Ti (24 GB VRAM), the model learned
 `RTDetrV2Model` is a wrapper module built around the Hugging Face  
 `RTDetrV2ForObjectDetection` architecture.  
 The implementation of the wrapper can be found in:  
-`models/rt_detrv2_model.py`
+`models/rt_detr_v2_model.py`
 
 Although the same training pipeline (`TransformerTrainer`) was used for both models,  
 **the only meaningful difference lies in the model wrapper itself**:
-- RT-DETRv2’s forward pass **does not use `pixel_mask`**,
+- RT-DETRv2’s forward pass **does not use `pixel_mask`**
 
 ---
 
-#### Used config to train the model
+#### Key Features RT-DETRv2
+
+The wrapper provides the same functionality as the `DefDetrModel` (loading configs, updating label mappings, optional head reset, built-in processor, checkpoint handling, and Hugging Face Hub integration), with the only difference being that it uses the RT-DETRv2-specific classes (`RTDetrV2Config`, `RTDetrImageProcessor`, `RTDetrV2ForObjectDetection`) instead of the Deformable DETR classes.
+
+---
+
+#### Used config to train the RT DETRv2 model
 
 ```yaml
 paths:
@@ -717,7 +723,7 @@ As in the Deformable DETR experiment, the model was trained on a rented
   Demonstrates steady improvements across multiple IoU thresholds,  
   indicating that both localization and classification become more precise as training progresses.
   
-#### Summary
+#### Summary RT DETRv2
 
 The RT-DETRv2 results exhibit:
 
