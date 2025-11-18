@@ -795,6 +795,77 @@ This workflow allowed fast, large-batch training of YOLOv11m on high-performance
 
 ---
 
+### Training Results for YOLOv11m
+
+The plots below present the full training progress of the YOLOv11m model trained on the converted YOLO dataset.
+![YOLOv11m](results/yolov11m_results.png)
+  
+#### **1. Training Losses (Epoch-Level)**
+
+- **`train/box_loss`**  
+  The bounding-box regression loss decreases steadily from early epochs through epoch 100.  
+  This indicates continuous improvement in spatial localization of players, goalkeepers, referees, and the ball.
+
+- **`train/cls_loss`**  
+  Classification loss falls sharply at the start, then stabilizes at low values — a sign of effective learning of the four classes.  
+  The curve is smooth, reflecting stable optimization.
+
+- **`train/dfl_loss`**  
+  The Distribution Focal Loss also declines consistently.  
+  DFL directly influences bounding box precision, so this downward trend confirms that the model becomes increasingly accurate at predicting object boundaries.
+
+---
+
+#### **2. Validation Losses (Epoch-Level)**
+
+- **`val/box_loss`**  
+  Mirrors the shape of the training loss and decreases consistently.  
+  No divergence is observed — indicating **no overfitting**.
+
+- **`val/cls_loss`**  
+  Shows rapid initial improvement, followed by stable and controlled reduction.  
+  The alignment with the training curve indicates good generalization of class predictions.
+
+- **`val/dfl_loss`**  
+  Very similar to its training counterpart.  
+  This parallel behavior across train/val confirms robust learning without memorization of the training data.
+
+---
+
+#### **3. Core Detection Metrics**
+
+- **`metrics/precision(B)`**  
+  The model’s precision climbs throughout training and stabilizes above **0.9**,  
+  meaning YOLOv11m rarely produces false positives.
+
+- **`metrics/recall(B)`**  
+  Recall progresses from ~0.4 to above **0.75**, showing improved ability to detect all relevant objects on the field.
+
+- **`metrics/mAP50(B)`**  
+  Increases sharply and reaches ~0.85.  
+  This suggests strong detection performance at moderate IoU thresholds.
+
+- **`metrics/mAP50-95(B)`**  
+  The most important and strict metric rises smoothly from ~0.3 to ~0.6.  
+  This reflects solid improvement across all IoU levels, especially in precise localization.
+
+### **Summary**
+
+Overall, the YOLOv11m training results demonstrate:
+
+- **stable and consistent convergence** across all loss components,  
+- **tight alignment between training and validation curves**,  
+- **high precision and solid recall**,  
+- **continuous upward trend in mAP metrics**,  
+- **no signs of overfitting** even after 100 epochs.
+
+Importantly, the curves — especially mAP50-95 — had **not yet plateaued**,  
+which strongly suggests that longer training would likely lead to further improvements.
+
+This aligns with findings from the DETR-based experiments, where all models showed upward-trending metrics at the end of training, indicating untapped potential for additional epochs.
+
+---
+
 ## Model Comparison
 
 Below is a visual comparison of the three trained models.  
@@ -857,6 +928,23 @@ This should be considered when interpreting the comparison.
 
 ---
 
+## Availability of Trained Models
+
+All trained models used in this project have been uploaded to **Hugging Face Hub**, making them publicly available and easy to download for anyone.
+
+The following repositories contain the final weights:
+
+- **YOLOv11m Football Detector**  
+  https://huggingface.co/Mikolaj1234/yolov11m-football-ai
+
+- **RT-DETRv2 Football Detector**  
+  https://huggingface.co/Mikolaj1234/rt-detr-v2-football-ai
+
+- **Deformable DETR Football Detector**  
+  https://huggingface.co/Mikolaj1234/def-detr-football-ai
+
+---
+
 ## Summary & Recommended Next Step
 
 Despite RT-DETRv2 achieving the highest training metrics, **YOLOv11m outperformed all models in real-world inference** thanks to its stability and robustness.
@@ -868,7 +956,7 @@ Both RT-DETRv2 and Deformable DETR suffer from inconsistent ball detection, whil
 Based on the results, the next step should be the addition of a **separate lightweight detector specialized only for ball detection**.  
 A dedicated model focused solely on the ball would significantly improve overall tracking when combined with the main player/referee detector.
 
-### ✔️ Testing inference and processing speed
+## ✔️ Testing inference and processing speed
 
 To reproduce the inference tests and evaluate the processing speed of each model, you can use the provided notebooks:
 
