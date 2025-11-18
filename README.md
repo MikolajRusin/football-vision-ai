@@ -22,28 +22,32 @@ Over time, the project has been refactored to improve its performance and extend
 ```bash
 football-ai/
 ├── configs/                       # Configuration files
-│   └── config.yaml                # Main configuration file
+│   └── config.yaml                  # Main configuration file
 ├── logger/                        # Logging utilities
-│   └── wandb_logger.py            # Integration with WandB for logging
+│   └── wandb_logger.py              # Integration with WandB for logging
 ├── manager/                       # Checkpoint and model management
-│   └── checkpoint_manager.py      # Checkpoint management functionality
+│   └── checkpoint_manager.py        # Checkpoint management functionality
 ├── models/                        # Model definitions and configurations
-│   └── def_detr_model.py          # Model architecture for DETR
-├── notebooks/                     # Jupyter Notebooks for experimentation
-│   ├── annotate_data.ipynb        # Notebook for data annotation
-│   ├── download_data.ipynb        # Notebook for data download
-│   └── test_load_dataset.ipynb    # Notebook for testing dataset loading
+│   └── def_detr_model.py            # Model architecture for DETR
+├── notebooks/                               # Jupyter Notebooks for experimentation
+│   ├── annotate_data.ipynb                    # Notebook for data annotation
+│   ├── def_detr_test_one_video.ipynb
+│   ├── download_data.ipynb                    # Notebook for data download
+│   ├── prepare_data_for_yolo_training.ipynb
+│   ├── rt_detr_v2_test_one_video.ipynb
+│   ├── test_load_dataset.ipynb                # Notebook for testing dataset loading
+│   └── yolov11m_test_one_video.ipynb 
 ├── training/                      # Training scripts and configurations
-│   ├── scripts/                   # Additional scripts for training
-│   │   └── def_detr_train.py      # Main training script
-│   └── trainer/                   # Trainer classes and utilities
-│       ├── evaluator.py           # Model evaluation functionality
-│       └── transformer_trainer.py # Transformer model trainer
+│   ├── scripts/                     # Additional scripts for training
+│   │   └── def_detr_train.py          # Main training script
+│   └── trainer/                     # Trainer classes and utilities
+│       ├── evaluator.py               # Model evaluation functionality
+│       └── transformer_trainer.py     # Transformer model trainer
 ├── utils/                         # Utility functions and helpers
-│   ├── data_utils/                # Data handling utilities
-│   │   ├── load_dataloader.py     # Dataloader management
-│   │   └── load_dataset.py        # Dataset loading utilities
-│   └── box_ops.py                 # Bounding box operations
+│   ├── data_utils/                  # Data handling utilities
+│   │   ├── load_dataloader.py         # Dataloader management
+│   │   └── load_dataset.py            # Dataset loading utilities
+│   └── box_ops.py                   # Bounding box operations
 ├── .gitignore                     # Git ignore file
 └── .venv/                         # Virtual environment for project dependencies
 ```
@@ -102,6 +106,7 @@ The most important steps at this stage are:
 1. The confidence threshold was set to 0.3 to avoid poor predictions and reduce clutter in the dataset.
 2. The Intersection over Union (IoU) threshold was set to 0.5 to eliminate duplicate predictions and select the most confident prediction for each object.
 3. The predictions were saved as the COCO JSON format, with bounding box coordinates (x, y, width, height) in absolute pixel values, where (x, y) refers to the top-left corner of the box.
+> ⚠️ Note: Category identifiers saved at this stage start at 1, because several transformer-based models require index 0 to refer to the background. This is due to the architecture and operation of these models.
 
 After running the notebook, each folder in the `data` directory will contain its own `coco_annotations` folder. Inside each `coco_annotations` folder, 
 you will find an `annotations.json` file with the corresponding annotations for the images in that folder. The data folder should look like the following structure:
@@ -125,3 +130,26 @@ you will find an `annotations.json` file with the corresponding annotations for 
 ```
 
 ## Data Loader
+To simplify data loading and to ensure that each image and its corresponding targets are passed to the training model in the correct format, a custom `LoadDataset` class was implemented.
+
+This class inherits from PyTorch’s `Dataset` and is designed to:
+- load images from disk,
+- load COCO-style annotations,
+- apply Albumentations augmentations (if enabled),
+- convert bounding boxes to the required format,
+- return `(image, target)` pairs compatible with transformer-based detection models.
+
+You can find the full implementation of the `LoadDataset` class in `utils/data_utils/load_dataset.py`
+
+### `LoadDataset` arguments
+
+The `LoadDataset` class accepts the following parameters:
+| Argument | Type | Description |
+|---------|------|-------------|
+| `dataset_dir_path` | `Path` | Path to the folder containing images (`train/images`, `valid/images`, etc.). |
+| `coco_annotations_path` | `Path` | Path to the COCO-style `annotations.json` file corresponding to the selected dataset split. |
+| `set_ratio` | `float \| int \| None` | Optional parameter allowing to load only a subset of the dataset (e.g., `0.2` for 20% of samples). Useful for debugging and quick experiments. |
+| `transforms` | `albumentations.Compose \| None` | Augmentations applied to each image–target pair. If `None`, only basic preprocessing is performed. |
+| `desire_bbox_format` | `str` | Bounding box output format required by the model. Supported values include `xywh`, `cxcywh`, etc. |
+| `return_img_path` | `bool` | If `True`, the dataset will also return the image file path. |
+
