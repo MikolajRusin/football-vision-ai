@@ -53,7 +53,7 @@ Over time, the project has been refactored to improve its performance and extend
 
 ## Project Structure
 ```bash
-football-ai/
+football-vision-ai/
 ├── configs/                       # Configuration files
 │   └── config.yaml                  # Main configuration file
 ├── logger/                        # Logging utilities
@@ -62,7 +62,7 @@ football-ai/
 │   └── checkpoint_manager.py        # Checkpoint management functionality
 ├── models/                        # Model definitions and configurations
 │   └── def_detr_model.py            # Model architecture for DETR
-├── notebooks/                               # Jupyter Notebooks for experimentation
+├── notebooks/                               # Jupyter notebooks for experiments and data preparation
 │   ├── annotate_data.ipynb                    # Notebook for data annotation
 │   ├── def_detr_test_one_video.ipynb          # Notebook for test Def DETR model on one video
 │   ├── download_data.ipynb                    # Notebook for data download
