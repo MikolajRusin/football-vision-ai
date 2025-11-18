@@ -15,7 +15,7 @@ Over time, the project has been refactored to improve its performance and extend
 - [Project Background](#project-background)
 - [Project Structure](#project-structure)
 - [Annotating Data](#annotating-data)
-- [Data Loader](#data-loader)
+- [Loading Data](#loading-data)
 - [Training Transformer Models](#training-transformer-models)
 
 ## Project Structure
@@ -129,27 +129,196 @@ you will find an `annotations.json` file with the corresponding annotations for 
 │
 ```
 
-## Data Loader
-To simplify data loading and to ensure that each image and its corresponding targets are passed to the training model in the correct format, a custom `LoadDataset` class was implemented.
+## Loading Data
 
-This class inherits from PyTorch’s `Dataset` and is designed to:
+The project uses a custom dataset loader and a wrapper function for building PyTorch dataloaders.  
+These utilities ensure that images, annotations, and augmentations are handled in a consistent and model-compatible way.
+
+---
+
+### `LoadDataset`
+
+`LoadDataset` is a custom class that inherits from PyTorch’s `Dataset`.  
+Its purpose is to:
+
 - load images from disk,
-- load COCO-style annotations,
-- apply Albumentations augmentations (if enabled),
-- convert bounding boxes to the required format,
-- return `(image, target)` pairs compatible with transformer-based detection models.
+- parse COCO-style annotations,
+- apply Albumentations transforms (if provided),
+- convert bounding boxes to the desired output format,
+- return data in the `(image, target)` structure required by transformer-based detection models.
 
-You can find the full implementation of the `LoadDataset` class in `utils/data_utils/load_dataset.py`
+You can find the implementation in: `utils/data_utils/load_dataset.py`
 
-### `LoadDataset` arguments
-
-The `LoadDataset` class accepts the following parameters:
+#### Arguments
 | Argument | Type | Description |
 |---------|------|-------------|
-| `dataset_dir_path` | `Path` | Path to the folder containing images (`train/images`, `valid/images`, etc.). |
-| `coco_annotations_path` | `Path` | Path to the COCO-style `annotations.json` file corresponding to the selected dataset split. |
-| `set_ratio` | `float \| int \| None` | Optional parameter allowing to load only a subset of the dataset (e.g., `0.2` for 20% of samples). Useful for debugging and quick experiments. |
-| `transforms` | `albumentations.Compose \| None` | Augmentations applied to each image–target pair. If `None`, only basic preprocessing is performed. |
-| `desire_bbox_format` | `str` | Bounding box output format required by the model. Supported values include `xywh`, `cxcywh`, etc. |
-| `return_img_path` | `bool` | If `True`, the dataset will also return the image file path. |
+| `dataset_dir_path` | `Path` | Path to the directory containing image files (`train/images`, `valid/images`, etc.). |
+| `coco_annotations_path` | `Path` | Path to the COCO `annotations.json` file for the dataset split. |
+| `set_ratio` | `float \| int \| None` | Allows loading only a selected percentage or number of samples. Useful for debugging. |
+| `transforms` | `albumentations.Compose \| None` | Image augmentations applied during loading. |
+| `desire_bbox_format` | `str` | The required bounding box format (`xywh`, `cxcywh`, etc.). |
+| `return_img_path` | `bool` | If `True`, the dataset also returns the image path together with the sample. |
+
+---
+
+### `load_dataloader`
+
+The `load_dataloader` function is a convenient wrapper around `LoadDataset` and PyTorch’s `DataLoader`.  
+It builds a fully configured dataloader for training or validation.
+
+You can find it in: `utils/data_utils/load_dataloader.py`
+
+#### Functionality
+
+- Initializes a `LoadDataset` instance,
+- optionally loads a custom category mapping,
+- wraps the dataset in a PyTorch `DataLoader`,
+- applies a custom `collate_fn` to support variable numbers of objects per image.
+
+#### Arguments
+
+| Argument | Type | Description |
+|---------|------|-------------|
+| `root_dir` | `Path \| str` | Path to the folder with image files. |
+| `coco_path` | `Path \| str` | Path to the COCO annotation JSON file. |
+| `set_ratio` | `float \| int \| None` | Same as in `LoadDataset`: limits the dataset size. |
+| `custom_categories` | `dict[str, Any] \| None` | Optional custom class-name–to-id mapping. |
+| `batch_size` | `int` | Number of samples per batch. |
+| `shuffle` | `bool` | Whether to shuffle the dataset. |
+| `transform_func` | `albumentations.Compose \| None` | Albumentations pipeline applied inside the dataset. |
+| `desire_bbox_format` | `str` | Bounding box output format expected by the model. |
+| `pin_memory` | `bool` | Enables `pin_memory=True` for faster host-to-GPU transfers. |
+
+## Training Transformer Models
+To train transformer-based object detection models (e.g., Deformable DETR or RT-DETR-V2), a custom training class named `TransformerTrainer` was implemented.  
+Although the Hugging Face `Trainer` class could be used, a custom solution was chosen intentionally — mainly to maintain full control over the training loop, support additional features (e.g., mAP per class, frequency-based validation, custom checkpointing), and to better understand the mechanics behind training transformer architectures.
+
+The full implementation of the trainer can be found in: `training/trainer/transformer_trainer.py`
+
+---
+
+### `TransformerTrainer`
+
+`TransformerTrainer` is a flexible training module designed specifically for object detection models built with the Hugging Face Transformers library.  
+It handles the following:
+
+- full training loop with epoch- and iteration-level logging,
+- computation and aggregation of model losses (`loss`, `loss_bbox`),
+- configurable optimizer and learning-rate scheduler,
+- validation at custom frequency,
+- mAP evaluation (via the custom `Evaluator` class),
+- checkpoint saving using `ModelCheckpointManager`,
+- logging to Weights & Biases using `WandbLogger`.
+
+The trainer accepts a wide range of parameters, allowing the user to precisely configure the training process.
+
+#### Key Arguments
+
+| Argument | Type | Description |
+|---------|------|-------------|
+| `model` | `nn.Module` | The transformer detection model to train. |
+| `train_dataloader` | `DataLoader` | Dataloader for the training split. |
+| `valid_dataloader` | `DataLoader \| None` | Optional validation dataloader. |
+| `frequency_validating` | `int \| None` | Allows running validation every N iterations. |
+| `score_threshold` | `float` | Score threshold for filtering model predictions during evaluation. |
+| `n_epochs` | `int` | Number of training epochs. |
+| `optimizer` | `str` | One of: `"adamw"`, `"adam"`, `"sgd"`. |
+| `optimizer_params` | `dict \| None` | Parameters passed to the optimizer (supports custom backbone LR). |
+| `lr_scheduler` | `str \| None` | One of: `"cosine_annealing"`, `"step"`, `"onecycle"`. |
+| `lr_scheduler_params` | `dict \| None` | Parameters for the chosen scheduler. |
+| `checkpoint_manager` | `ModelCheckpointManager \| None` | Utility for saving model checkpoints. |
+| `frequency_saving_checkpoint` | `int \| None` | Allows saving checkpoints every N iterations. |
+| `wandb_logger` | `WandbLogger \| None` | Optional Weights & Biases logger. |
+| `map_per_class` | `bool` | Enables mAP calculation for each class separately. |
+
+---
+
+### Training Loop Overview
+
+The trainer follows a classical loop structure:
+
+1. **Forward pass**  
+   The model receives a batch and returns all loss components through `outputs.loss` and `outputs.loss_dict`.
+
+2. **Backward pass & optimizer step**  
+   Loss gradients are cleared, computed, and applied.
+
+3. **Logging**  
+   - iteration-level logging (optional, to W&B),  
+   - epoch summaries (loss, bbox loss, mAP).
+
+4. **Validation**  
+   - can run once per epoch or based on `frequency_validating`,  
+   - predictions and targets are post-processed for the `Evaluator`.
+
+5. **Checkpointing**  
+   - at the end of each epoch,  
+   - optionally every *N* iterations.
+
+This setup provides full transparency and control over training — which was one of the key reasons to implement a custom trainer instead of relying on the built-in Hugging Face `Trainer`.
+
+---
+
+### `Training DefDetrModel`
+
+`DefDetrModel` is a wrapper module built around the Hugging Face  
+`DeformableDetrForObjectDetection` architecture.  
+The goal of this class is to provide a clean, unified interface for:
+
+- loading pretrained Deformable DETR models,
+- customizing label mappings (`id2label`),
+- resetting classification heads for fine-tuning on new datasets,
+- performing forward passes for both training and inference,
+- loading checkpoints saved during training,
+- loading models directly from a Hugging Face Hub repository.
+
+This wrapper integrates seamlessly with the `TransformerTrainer` and ensures that  
+images, annotations, and predictions are processed in a format suitable for  
+transformer-based object detection.
+
+---
+
+#### Key Features
+
+##### ✔️ Configurable label space  
+If `id2label` is passed during initialization, the model automatically:
+
+- updates `config.id2label`,
+- sets `config.label2id`,
+- adjusts the classification head for the correct number of classes.
+
+This makes the model fully adaptable to custom datasets (e.g., your FootballAI dataset).
+
+##### ✔️ Optional head reset  
+When `reset_head=True`, the classification layers are re-initialized using Xavier initialization —  
+useful when fine-tuning on newly annotated datasets with different label distributions.
+
+##### ✔️ Built-in processor  
+The model loads `DeformableDetrImageProcessor` and uses it internally for:
+
+- image normalization,
+- padding,
+- conversion of annotations to model-friendly tensors.
+
+This allows you to pass raw images and COCO-like annotations directly to the model.
+
+##### ✔️ Seamless checkpoint loading  
+The `load_model_checkpoint()` method loads:
+
+- full model weights,
+- full config,
+- restores label mappings,
+- reloads/reinitializes heads if the number of classes has changed.
+
+Compatible with checkpoints saved by your `ModelCheckpointManager`.
+
+##### ✔️ Hugging Face Hub support  
+The `from_pretrained()` class method allows loading the model directly from a Hub repository  
+including `.safetensors` weights.  
+This is especially useful for sharing trained detectors with collaborators.
+
+---
+
+
+
 
