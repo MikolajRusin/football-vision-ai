@@ -16,6 +16,7 @@ class LoadDataset(Dataset):
     set_ratio: float | int | None = None
     transforms: albumentations.Compose | None = None
     desire_bbox_format: str = 'xywh'
+    return_img_path: bool = False
 
     def __post_init__(self):
         self.load_data()
@@ -53,11 +54,11 @@ class LoadDataset(Dataset):
 
         self.ids = self.ids[:n_keep]
 
-    def _load_image(self, id: int) -> np.ndarray:
+    def _load_image(self, id: int) -> tuple[np.ndarray, str]:
         img_filename = self.coco.loadImgs(id)[0]['file_name']
         img = cv2.imread(str(self.dataset_dir_path / img_filename))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        return img
+        return img, img_filename
     
     def _load_anns(self, id: int) -> tuple[list[float], list[int]]:
         anns         = self.coco.loadAnns(self.coco.getAnnIds(id))
@@ -73,7 +74,7 @@ class LoadDataset(Dataset):
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         id = self.ids[index]
-        image = self._load_image(id)
+        image, image_filename = self._load_image(id)
         bboxes, category_ids, areas = self._load_anns(id)
 
         # Albumentations
@@ -137,5 +138,7 @@ class LoadDataset(Dataset):
                 for bbox, cat_id, area in zip(bboxes, category_ids, areas)
             ]
         }
+        if self.return_img_path:
+            target['image_path'] = str(self.dataset_dir_path / image_filename)
 
         return image, target
