@@ -1,6 +1,6 @@
 # Main configuration for the training process
 paths:
-  project_root: '/home/mikolaj/Desktop/Projects/my_projects/football-ai'
+  project_root: <root_path_to_the_project_folder>
   train:
     images: '${paths.project_root}/data/train/images'
     annotations: '${paths.project_root}/data/train/coco_annotations/annotations.json'
