@@ -732,4 +732,11 @@ Below is a visual comparison of the three trained models.
 
 #### Visual Results (GIFs)
 
+##### Deformable DETR
 ![Deformable DETR](results/def_detr_processed_video.gif)
+
+##### RT-DETRv2
+![RT-DETRv2](results/rt_detr_processed_video.gif)
+
+##### YOLOv11m
+![YOLOv11m](results/yolov11m_processed_video.gif)
