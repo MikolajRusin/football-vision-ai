@@ -259,9 +259,77 @@ This setup provides full transparency and control over training — which was on
 
 ---
 
+### Main Training Configuration
+
+Before presenting the trained models and their results, the main configuration structure used for training is outlined below.  
+The configurations for models training is stored in: `configs/<model>_training_config.yaml`.
+
+It is organized into several logical blocks, each responsible for a specific part of the training pipeline.  
+Below is an overview of what each field represents (without exposing specific values).
+
+---
+
+#### **config.yaml file**
+
+```yaml
+paths:
+  project_root: <path_to_project_root>               # Absolute path to the project root.
+  train:
+    images: <path_to_training_images>                # Directory with training images.
+    annotations: <path_to_training_annotations_json> # COCO annotations for the training split.
+  valid:
+    images: <path_to_validation_images>              # Directory with validation images.
+    annotations: <path_to_validation_annotations_json> # COCO annotations for the validation split.
+
+training:
+  num_epochs: <number_of_epochs>                     # Total number of training epochs.
+  batch_size: <batch_size>                           # Number of samples per batch.
+  train_set_ratio: <subset_ratio_or_null>            # If null → full dataset is used.
+  valid_set_ratio: <subset_ratio_or_null>            # If null → full dataset is used.
+  frequency_validating: <validate_every_n_iterations_or_null> # If null → validate once per epoch.
+  score_threshold: <model_score_threshold>           # Minimum score for predicted boxes.
+  save_checkpoints: <true_or_false>                  # Whether checkpoints should be saved.
+  checkpoint_dir_path: <path_or_null>                # If null → default directory is used.
+  max_checkpoints: <max_number_of_checkpoints>       # How many latest checkpoints to keep.
+  frequency_saving_checkpoint: <save_every_n_iterations>  # If null → save checkpoint once per epoch. Only if save_checkpoints is True 
+  log_metrics: <true_or_false>                       # Enables/disables metric logging (W&B).
+  map_per_class: <true_or_false>                     # Requires log_metrics=true; computes per-class mAP.
+  shuffle: <true_or_false>                           # Shuffle training dataset each epoch.
+  desire_bbox_format: <bbox_format>                  # Output format for bounding boxes (e.g., xywh).
+  augmentation: <true_or_false>                      # Enable/disable Albumentations transforms.
+  pin_memory: <true_or_false>                        # DataLoader optimization for GPU training.
+  device: <device>                                    # Typically "cuda" or "cpu".
+
+model:
+  model_id: <huggingface_model_id>                   # Hugging Face model identifier for loading weights.
+  id2label:
+    <class_id>: <class_name>                         # Using custom class IDs. If null then the basic classes from the configuration of the specific model will be used 
+  device: <device>                                    # Inherits from training.device.
+  reset_head: <true_or_false>                        # If true → reinitializes classification head. It is necessary in the case of custom classes.
+
+optimizer:
+  type: <optimizer_name>                             # One of: adamw, adam, sgd.
+  params:
+    lr: <learning_rate>                              # Learning rate for non-backbone parameters.
+    backbone_lr: <backbone_learning_rate>            # Optional; if null →  all learning layers will be assigned lr.
+    weight_decay: <weight_decay>                     # If null → default optimizer weight decay is used.
+
+scheduler:
+  type: <scheduler_type_or_null>                     # If null → scheduler is not used.
+  params:
+    T_max: <max_cycles_or_epochs>                    # Scheduler-specific; ignored if scheduler.type is null.
+    eta_min: <minimum_learning_rate>                 # Optional; if null → default value is used.
+
+wandb_logger:
+  project_name: <wandb_project_name>                 # Name of the W&B project; ignored if log_metrics is False.
+```
+
+---
+
 ### `Training DefDetrModel`
 
-`DefDetrModel` is a wrapper module built around the Hugging Face  
+`DefDetrModel` is a wrapper module built around the Hugging Face.  
+The implementation of DefDetrModel wrapper can be found in: `models/def_detr_model.py`  
 `DeformableDetrForObjectDetection` architecture.  
 The goal of this class is to provide a clean, unified interface for:
 
