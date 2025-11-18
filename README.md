@@ -328,9 +328,8 @@ wandb_logger:
 
 ### `Training DefDetrModel`
 
-`DefDetrModel` is a wrapper module built around the Hugging Face.  
+`DefDetrModel` is a wrapper module built around the Hugging Face `DeformableDetrForObjectDetection` architecture.  
 The implementation of DefDetrModel wrapper can be found in: `models/def_detr_model.py`  
-`DeformableDetrForObjectDetection` architecture.  
 The goal of this class is to provide a clean, unified interface for:
 
 - loading pretrained Deformable DETR models,
@@ -386,6 +385,73 @@ including `.safetensors` weights.
 This is especially useful for sharing trained detectors with collaborators.
 
 ---
+
+#### Used config to train the model
+
+```yaml
+# Main configuration for the training process
+paths:
+  project_root: <project_root_dir_path>
+  train:
+    images: '${paths.project_root}/data/train/images'
+    annotations: '${paths.project_root}/data/train/coco_annotations/annotations.json'
+  valid:
+    images: '${paths.project_root}/data/valid/images'
+    annotations: '${paths.project_root}/data/valid/coco_annotations/annotations.json'
+
+training:
+  num_epochs: 20
+  batch_size: 2
+  train_set_ratio: null
+  valid_set_ratio: null
+  frequency_validating: null
+  score_threshold: 0.3
+  save_checkpoints: true
+  checkpoint_dir_path: null
+  max_checkpoints: 5 
+  frequency_saving_checkpoint: 200
+  log_metrics: true
+  map_per_class: true
+  shuffle: true
+  desire_bbox_format: xywh
+  augmentation: true
+  pin_memory: true
+  device: 'cuda'
+
+# Model configuration
+model:
+  model_id: SenseTime/deformable-detr
+  id2label:
+    0: 'N/A'
+    1: 'Ball'
+    2: 'Goalkeeper'
+    3: 'Player'
+    4: 'Referee'
+  device: ${training.device}
+  reset_head: true
+
+# Optimizer configuration
+optimizer:
+  type: adamw  # Default
+  params:
+    lr: 5e-4
+    backbone_lr: 1e-6
+    weight_decay: 0.01
+
+# Scheduler configuration
+scheduler:
+  type: cosine_annealing
+  params:
+    T_max: ${training.num_epochs}
+    eta_min: 1e-6
+  
+wandb_logger:
+  project_name: football-ai
+```
+
+---
+
+#### Training Results
 
 
 
