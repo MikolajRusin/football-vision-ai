@@ -20,9 +20,28 @@ Over time, the project has been refactored to improve its performance and extend
 - [Overview](#overview)
 - [Project Background](#project-background)
 - [Project Structure](#project-structure)
+- [Setting Environment Variables](#setting-environment-variables)
+- [Downloading Data](#downloading-data)
 - [Annotating Data](#annotating-data)
 - [Loading Data](#loading-data)
+  - [LoadDataset](#loaddataset)
+  - [load_dataloader](#load_dataloader)
 - [Training Transformer Models](#training-transformer-models)
+  - [TransformerTrainer](#transformertrainer)
+  - [Main Training Configuration](#main-training-configuration)
+  - [Training Deformable DETR Model](#training-deformable-detr-model)
+    - [Key Features](#key-features)
+    - [Training Results for Deformable DETR](#training-results-for-deformable-detr)
+    - [Summary](#summary)
+  - [Training RT-DETRv2 Model](#training-rt-detrv2-model)
+- [Training YOLOv11m Model](#training-yolov11m-model)
+  - [Preparing Data for YOLO](#preparing-data-for-yolo)
+  - [Training Setup](#training-setup)
+  - [Training Results for YOLOv11mm](#training-results-for-yolov11m)
+- [Model Comparison](#model-comparison)
+- [Important Note on Training Duration](#important-note-on-training-duration)
+- [Availability of Trained Models](#availability-of-trained-models)
+- [Summary & Recommended Next Step](#summary--recommended-next-step)
 
 ---
 
@@ -246,7 +265,7 @@ The trainer accepts a wide range of parameters, allowing the user to precisely c
 
 ---
 
-### Training Loop Overview
+#### Training Loop Overview
 
 The trainer follows a classical loop structure:
 
@@ -714,7 +733,7 @@ and shows significant potential with extended training.
 
 ## Training YOLOv11m Model
 
-### Preparing Data for YOLO Model Training
+### Preparing Data for YOLO
 
 The dataset used for training the transformer-based models (Deformable DETR and RT-DETRv2) was originally stored in **COCO format**, where all annotations for each split are stored in a single file:
 
@@ -916,7 +935,7 @@ YOLOv11m turned out to be the most reliable model during real video inference.
 
 ---
 
-## ⚠️ **Important Note on Training Duration**
+## **Important Note on Training Duration**
 
 **All three models were trained for a relatively short period of time**, and none of them reached the point of clear metric stabilization (mAP, mAP@50–95, bbox loss).  
 This means the training curves were still showing upward or downward trends at the end of training.
