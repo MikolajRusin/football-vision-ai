@@ -693,7 +693,7 @@ As in the Deformable DETR experiment, the model was trained on a rented
   Demonstrates steady improvements across multiple IoU thresholds,  
   indicating that both localization and classification become more precise as training progresses.
   
-##### Summary
+#### Summary
 
 The RT-DETRv2 results exhibit:
 
@@ -795,24 +795,24 @@ This workflow allowed fast, large-batch training of YOLOv11m on high-performance
 
 ---
 
-### Model Comparison
+## Model Comparison
 
 Below is a visual comparison of the three trained models.  
 
-#### Visual Results (GIFs)
+### Visual Results (GIFs)
 
-##### Deformable DETR
+#### Deformable DETR
 ![Deformable DETR](results/def_detr_processed_video.gif)
 
-##### RT-DETRv2
+#### RT-DETRv2
 ![RT-DETRv2](results/rt_detr_processed_video.gif)
 
-##### YOLOv11m
+#### YOLOv11m
 ![YOLOv11m](results/yolov11m_processed_video.gif)
 
 ---
 
-#### Deformable DETR — more stable, but still struggles with the ball
+### Deformable DETR — more stable, but still struggles with the ball
 Deformable DETR performs visibly better than RT-DETRv2 when tested on full-pitch video.
 
 - Player detections are **more consistent** and less prone to frame-to-frame flickering.  
@@ -823,7 +823,7 @@ Deformable DETR performs visibly better than RT-DETRv2 when tested on full-pitch
 
 ---
 
-#### RT-DETRv2 — weakest real-world performance
+### RT-DETRv2 — weakest real-world performance
 Although RT-DETRv2 achieved better metrics during training than Deformable DETR (mAP, mAP@50, mAP@75), its behavior during video inference was noticeably worse.
 
 - The model frequently **loses the ball**, especially when it moves quickly or becomes partially occluded.  
@@ -834,7 +834,7 @@ Although RT-DETRv2 achieved better metrics during training than Deformable DETR 
 
 ---
 
-#### YOLOv11m — best practical performance
+### YOLOv11m — best practical performance
 YOLOv11m turned out to be the most reliable model during real video inference.
 
 - Player positions are **stable across frames**, with minimal flickering.  
@@ -845,7 +845,7 @@ YOLOv11m turned out to be the most reliable model during real video inference.
 
 ---
 
-#### ⚠️ **Important Note on Training Duration**
+## ⚠️ **Important Note on Training Duration**
 
 **All three models were trained for a relatively short period of time**, and none of them reached the point of clear metric stabilization (mAP, mAP@50–95, bbox loss).  
 This means the training curves were still showing upward or downward trends at the end of training.
@@ -857,18 +857,18 @@ This should be considered when interpreting the comparison.
 
 ---
 
-#### Summary & Recommended Next Step
+## Summary & Recommended Next Step
 
 Despite RT-DETRv2 achieving the highest training metrics, **YOLOv11m outperformed all models in real-world inference** thanks to its stability and robustness.
 
 Both RT-DETRv2 and Deformable DETR suffer from inconsistent ball detection, while YOLOv11m also struggles but remains the most stable option overall.
 
-##### ✔️ Recommended approach
+### ✔️ Recommended approach
 
 Based on the results, the next step should be the addition of a **separate lightweight detector specialized only for ball detection**.  
 A dedicated model focused solely on the ball would significantly improve overall tracking when combined with the main player/referee detector.
 
-##### ✔️ Testing inference and processing speed
+### ✔️ Testing inference and processing speed
 
 To reproduce the inference tests and evaluate the processing speed of each model, you can use the provided notebooks:
 
