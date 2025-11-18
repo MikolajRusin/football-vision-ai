@@ -31,11 +31,11 @@ Over time, the project has been refactored to improve its performance and extend
   - [Main Training Configuration](#main-training-configuration)
   - [Training Deformable DETR Model](#training-deformable-detr-model)
     - [Key Features](#key-features-def-detr)
-    - [Used config to train the model](#used-config-to-train-the-def-detr-model)
+    - [Used config to train the model](#used-config-to-train-the-model)
     - [Training Results for Deformable DETR](#training-results-for-def-detr)
     - [Summary](#summary-def-detr)
   - [Training RT-DETRv2 Model](#training-rt-detrv2-model)
-    - [Key Features](#key-features)
+    - [Key Features](#key-features-rt-detr)
     - [Used config to train the model](#used-config-to-train-the-model)
     - [Training Results for Deformable DETR](#training-results-for-deformable-detr)
     - [Summary](#summary)
@@ -420,7 +420,7 @@ This is especially useful for sharing trained detectors with collaborators.
 
 ---
 
-#### Used config to train the Def DETR model
+#### Used config to train the model
 
 ```yaml
 # Main configuration for the training process
