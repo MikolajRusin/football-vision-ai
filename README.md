@@ -37,17 +37,17 @@ football-ai/
 │   ├── rt_detr_v2_test_one_video.ipynb
 │   ├── test_load_dataset.ipynb                # Notebook for testing dataset loading
 │   └── yolov11m_test_one_video.ipynb 
-├── training/                      # Training scripts and configurations
-│   ├── scripts/                     # Additional scripts for training
-│   │   └── def_detr_train.py          # Main training script
-│   └── trainer/                     # Trainer classes and utilities
-│       ├── evaluator.py               # Model evaluation functionality
-│       └── transformer_trainer.py     # Transformer model trainer
-├── utils/                         # Utility functions and helpers
-│   ├── data_utils/                  # Data handling utilities
-│   │   ├── load_dataloader.py         # Dataloader management
-│   │   └── load_dataset.py            # Dataset loading utilities
-│   └── box_ops.py                   # Bounding box operations
+├── training/                          # Training scripts and configurations
+│   ├── scripts/                         # Additional scripts for training
+│   │   └── train_transformer_model.py     # Main training script
+│   └── trainer/                         # Trainer classes and utilities
+│       ├── evaluator.py                   # Model evaluation functionality
+│       └── transformer_trainer.py         # Transformer model trainer
+├── utils/                             # Utility functions and helpers
+│   ├── data_utils/                      # Data handling utilities
+│   │   ├── load_dataloader.py             # Dataloader management
+│   │   └── load_dataset.py                # Dataset loading utilities
+│   └── box_ops.py                       # Bounding box operations
 ├── .gitignore                     # Git ignore file
 └── .venv/                         # Virtual environment for project dependencies
 ```
@@ -326,7 +326,7 @@ wandb_logger:
 
 ---
 
-### `Training DefDetrModel`
+### `Training Deformable DETR Model`
 
 `DefDetrModel` is a wrapper module built around the Hugging Face `DeformableDetrForObjectDetection` architecture.  
 The implementation of DefDetrModel wrapper can be found in: `models/def_detr_model.py`  
@@ -451,8 +451,287 @@ wandb_logger:
 
 ---
 
-#### Training Results
+#### Training Results for Deformable DETR
 
+The Deformable DETR model was trained on a rented GPU from Vast.ai —  
+**NVIDIA RTX 3090 Ti with 24 GB of VRAM**.  
+Despite using such a powerful GPU, the training process was still relatively long due to the computational cost of transformer-based object detection models.  
+This is expected for architectures like Deformable DETR, which require high-resolution inputs and operate with multi-head attention over spatial features.
 
+Below are the training results, including iteration-level losses, epoch-level losses, and mAP metrics across object sizes and classes.
+![Training results](results/def_detr_results.png)
 
+---
 
+##### **1. Iteration-Level Losses**
+
+- **`iteration/loss`**  
+  The total loss decreases rapidly during the early iterations and then stabilizes.  
+  The curve remains smooth, showing no instability or divergence.
+
+- **`iteration/bbox_loss`**  
+  Bounding-box regression loss follows the same trend, with expected noise from iteration-to-iteration updates.
+
+---
+
+#### **2. Epoch-Level Losses**
+
+- **`epoch/train_loss`** and **`epoch/valid_loss`**  
+  Both losses drop consistently throughout training.  
+  Validation loss closely follows the training loss, indicating healthy generalization and no overfitting.
+
+- **`epoch/train_bbox_loss`** and **`epoch/valid_bbox_loss`**  
+  Both decline steadily, confirming improvements in bounding-box localization.
+
+---
+
+##### **3. Size-Based mAP Metrics**
+
+- **`epoch/mAP_medium`**  
+  Medium-sized objects achieve stable and strong improvements across epochs.
+
+- **`epoch/mAP_small`**  
+  Shows a clear upward trend, although with slightly slower growth, which is typical for small objects like the ball.
+
+---
+
+##### **4. Class-Specific mAP Metrics**
+
+- **Ball**  
+  Despite being a small and fast-moving object, the model learns to detect it effectively.
+
+- **Player**  
+  The best-performing class — rapid improvement and consistently high mAP.
+
+- **Goalkeeper**  
+  Harder to detect due to visual similarity to players and fewer examples, but the metric still increases steadily.
+
+- **Referee**  
+  mAP also rises over the epochs, though slightly slower due to limited samples.
+
+---
+
+##### **5. Global Detection Metrics**
+
+- **`epoch/mAP_50`**  
+  Shows a strong and consistent rise, indicating improving coarse localization.
+
+- **`epoch/mAP_75`**  
+  Increases more gradually, reflecting the difficulty of achieving high-IoU matches.
+
+- **`epoch/mAP_50-95`**  
+  Demonstrates continuous improvement across all IoU thresholds.
+
+---
+
+#### Summary
+
+The training curves show a clear and consistent **upward trend** across all loss components and mAP metrics.  
+This strongly suggests that:
+
+- the model did **not** reach full convergence,  
+- further training would likely continue improving both localization and classification performance,  
+- additional epochs or fine-tuning could yield even better results,  
+- the pipeline is stable and scales well even on demanding transformer architectures.
+Despite the long training time on an RTX 3090 Ti (24 GB VRAM), the model learned steadily and shows significant potential for further improvements.
+
+---
+
+### `Training RT-DETRv2 Model`
+
+`RTDetrV2Model` is a wrapper module built around the Hugging Face  
+`RTDetrV2ForObjectDetection` architecture.  
+The implementation of the wrapper can be found in:  
+`models/rt_detrv2_model.py`
+
+Although the same training pipeline (`TransformerTrainer`) was used for both models,  
+**the only meaningful difference lies in the model wrapper itself**:
+- RT-DETRv2’s forward pass **does not use `pixel_mask`**,
+
+---
+
+#### Used config to train the model
+
+```yaml
+paths:
+  project_root: <project_root_dir_path>
+  train:
+    images: '${paths.project_root}/data/train/images'
+    annotations: '${paths.project_root}/data/train/coco_annotations/annotations.json'
+  valid:
+    images: '${paths.project_root}/data/valid/images'
+    annotations: '${paths.project_root}/data/valid/coco_annotations/annotations.json'
+
+training:
+  num_epochs: 40
+  batch_size: 8
+  train_set_ratio: null
+  valid_set_ratio: null 
+  frequency_validating: null
+  score_threshold: 0.3
+  save_checkpoints: true
+  checkpoint_dir_path: null        
+  max_checkpoints: 5              
+  frequency_saving_checkpoint: 60 
+  log_metrics: true
+  map_per_class: true
+  shuffle: true
+  desire_bbox_format: xywh
+  augmentation: true
+  pin_memory: true
+  device: 'cuda'
+
+# Model configuration
+model:
+  model_id: PekingU/rtdetr_v2_r18vd
+  id2label:
+    0: 'Ball'
+    1: 'Goalkeeper'
+    2: 'Player'
+    3: 'Referee'
+  device: ${training.device}
+  reset_head: true
+
+# Optimizer configuration
+optimizer:
+  type: adamw  # Default
+  params:
+    lr: 5e-5
+    backbone_lr: 5e-6
+    weight_decay: 0.01
+
+# Scheduler configuration
+scheduler:
+  type: cosine_annealing  # If you don't want to use scheduler the set the type as null
+  params:
+    T_max: ${training.num_epochs}
+    eta_min: 1e-6
+  
+wandb_logger:
+  project_name: football-ai
+```
+  
+As you can see in the configuration above, the class indexing for RT-DETRv2 starts from **0** instead of **1**.  
+This is required because **RT-DETR does not use a background class**, unlike Deformable DETR.
+
+In Deformable DETR, the label mapping typically starts with:
+- `0: "N/A"` – an explicit background class  
+- real object classes begin from index **1**
+
+RT-DETRv2 works differently. It does **not** include a background label in the class embeddings.  
+Because of this, all object classes must start from index **0**, and no `"N/A"` entry should be included.
+
+---
+
+#### Training Results for RT-DETRv2
+
+The following plots present the complete training progress for the RT-DETRv2 model.  
+RT-DETRv2 is optimized for real-time performance while maintaining strong accuracy, and the training curves confirm stable convergence and consistent improvements across all metrics.
+
+As in the Deformable DETR experiment, the model was trained on a rented  
+**NVIDIA RTX 3090 Ti (24 GB VRAM)** from Vast.ai.  
+![Training results](results/rt_detrv2_results.png)
+
+---
+
+##### **1. Iteration-Level Losses**
+
+- **`iteration/loss`**  
+  The overall loss drops rapidly during the first few hundred iterations and stabilizes smoothly.  
+  The curve shows stable optimization with no oscillations or divergence.
+
+- **`iteration/bbox_loss`**  
+  Bounding-box loss follows a clear downward trajectory.  
+  Although per-iteration values are noisy (expected for dense detection),  
+  the global trend is clearly descending.
+
+---
+
+##### **2. Epoch-Level Losses**
+
+- **`epoch/train_loss`** and **`epoch/valid_loss`**  
+  Both curves steadily decrease over the training epochs.  
+  Validation loss remains close to training loss, indicating:
+  - good generalization,
+  - no overfitting,
+  - stable optimization dynamics.
+
+- **`epoch/train_bbox_loss`** and **`epoch/valid_bbox_loss`**  
+  Both bounding-box regression losses decline consistently, confirming  
+  improved localization accuracy throughout training.
+
+---
+
+##### **3. Size-Based mAP Metrics**
+
+- **`epoch/mAP_medium`**  
+  Shows a strong and smooth upward trend, indicating reliable detection of medium-sized objects (players at moderate distances).
+
+- **`epoch/mAP_small`**  
+  Improves consistently, despite the inherent difficulty of detecting small objects such as distant players or the ball.  
+  The upward trajectory suggests the model had not yet fully converged and could benefit from further training.
+
+---
+
+##### **4. Class-Specific mAP Metrics**
+
+- **Ball**  
+  The model manages to learn this challenging class effectively.  
+  The metric grows steadily, with noticeable variability typical for small, fast-moving objects.
+
+- **Player**  
+  One of the strongest-performing classes.  
+  mAP rises quickly and remains high across epochs.
+
+- **Goalkeeper**  
+  mAP improves throughout training, though at a slower pace due to fewer samples  
+  and visual similarity to regular players.
+
+- **Referee**  
+  Shows a consistent and stable increase, despite class imbalance.
+
+---
+
+##### **5. Global Detection Metrics**
+
+- **`epoch/mAP_50`**  
+  Rises sharply and reaches strong values early in training, confirming  
+  good coarse localization performance.
+
+- **`epoch/mAP_75`**  
+  Improves more gradually, reflecting the difficulty of achieving high IoU overlap.
+
+- **`epoch/mAP_50-95`**  
+  Demonstrates steady improvements across multiple IoU thresholds,  
+  indicating that both localization and classification become more precise as training progresses.
+
+---
+
+##### Summary
+
+The RT-DETRv2 results exhibit:
+
+- stable and smooth convergence across all loss components,
+- strong generalization between training and validation sets,
+- consistent growth in mAP metrics for all object classes,
+- reliable detection of both medium and small objects,
+- no signs of overfitting or training collapse.
+
+Importantly, most curves — especially mAP —  
+show a **clear upward trend even at the end of training**, suggesting that  
+**additional epochs would likely further improve the model's performance**.
+
+Overall, RT-DETRv2 demonstrates excellent learning behaviour on the FootballAI dataset  
+and shows significant potential with extended training.
+
+---
+
+### Model Comparison
+
+Below is a visual comparison of the three trained models.  
+
+#### Visual Results (GIFs)
+
+![Deformable DETR](results/def_detr_results.gif)
+![RT-DETRv2](results/rt_detrv2_results.gif)
+![YOLOv11m](results/yolov11m_results.gif)
