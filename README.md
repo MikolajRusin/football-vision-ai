@@ -28,6 +28,7 @@ Over time, the project has been refactored to improve its performance and extend
   - [load_dataloader](#load_dataloader)
 - [Training Transformer Models](#training-transformer-models)
   - [TransformerTrainer](#transformertrainer)
+  - [Training Script Overview](#training-script-overview)
   - [Main Training Configuration](#main-training-configuration)
   - [Training Deformable DETR Model](#training-deformable-detr-model)
     - [Key Features](#key-features-def-detr)
@@ -267,9 +268,7 @@ The trainer accepts a wide range of parameters, allowing the user to precisely c
 | `frequency_saving_checkpoint` | `int \| None` | Allows saving checkpoints every N iterations. |
 | `wandb_logger` | `WandbLogger \| None` | Optional Weights & Biases logger. |
 | `map_per_class` | `bool` | Enables mAP calculation for each class separately. |
-
----
-
+  
 #### Training Loop Overview
 
 The trainer follows a classical loop structure:
@@ -293,6 +292,112 @@ The trainer follows a classical loop structure:
    - optionally every *N* iterations.
 
 This setup provides full transparency and control over training — which was one of the key reasons to implement a custom trainer instead of relying on the built-in Hugging Face `Trainer`.
+
+---
+
+### Training Script Overview
+
+The entire training process for both transformer-based models (Deformable DETR and RT-DETRv2) is orchestrated by a single script `training/scripts/train_transformer_model.py`.  
+  
+This script brings together all components of the pipeline — data loading, model initialization,
+augmentation, checkpointing, logging, and the training loop executed by `TransformerTrainer`.
+
+Below is a high-level overview of what the script is responsible for:
+
+---
+
+#### **1. Loading the Training Configuration**
+
+The script uses `OmegaConf` to load a YAML configuration file passed through:
+```
+--config_path path/to/config.yaml
+```
+
+All training hyperparameters, data paths, optimizer settings, schedulers, and model metadata
+are resolved at this stage.
+  
+#### **2. Preparing the Dataset and Dataloaders**
+
+The script builds the training and (optionally) validation dataloaders using:
+
+- `load_dataloader()`  
+- `LoadDataset`  
+- Albumentations augmentations (if enabled in the config)
+
+Bounding boxes are automatically converted to the desired format  
+(e.g., `xywh` → `cxcywh`, depending on the model requirements).
+  
+#### **3. Building Albumentations Augmentation Pipeline**
+
+If `training.augmentation=True`, a custom augmentation pipeline is used:
+
+- `HorizontalFlip`
+- `RandomBrightnessContrast`
+- `CLAHE`
+- `HueSaturationValue`
+
+All augmentations operate in COCO bbox format and preserve annotations.
+  
+#### **4. Initializing Loggers and Checkpoint Manager**
+
+Depending on config flags:
+
+- **Weights & Biases** logger is created (`WandbLogger`)
+- **ModelCheckpointManager** is initialized to save model weights during training
+
+These modules integrate with the `TransformerTrainer`.
+  
+#### **5. Selecting and Initializing the Model**
+
+The script automatically detects which model to instantiate:
+
+- `RTDetrV2Model` → when model_id contains `"rtdetr"`
+- `DefDetrModel` → when model_id contains `"detr"`
+
+Both wrappers support:
+
+- loading pretrained HF weights  
+- updating `id2label` mappings  
+- optional head reset  
+- full integration with HF Hub during loading/inference
+  
+#### **6. Initializing the Training Pipeline**
+
+All components are assembled into a single training object:
+```
+trainer = TransformerTrainer(
+model=model,
+train_dataloader=train_dataloader,
+valid_dataloader=valid_dataloader,
+...
+)
+```
+Its components are explained in the section above `TransformerTrainer`
+  
+#### **7. Starting the Training Loop**
+
+Finally, the script launches the full training process:
+```
+trainer.train()
+```
+  
+This structure makes the training script modular, clearly organized, and compatible with both transformer-based detection models used in the project.
+
+#### Running the Training Script
+To start training a transformer-based model, first prepare the configuration file  
+(the next section explains the structure of the config in detail).
+
+Then navigate to the training scripts directory:
+```bash
+cd training/scripts
+```
+
+Run the training script by providing the path to your configuration file:
+```bash
+python train_transformer_model.py --config_path <path_to_config_yaml>
+```
+
+This command launches the full training pipeline, including data loading, model initialization and other things depending on the config file.
 
 ---
 
@@ -545,7 +650,9 @@ Below are the training results, including iteration-level losses, epoch-level lo
 
 - **`epoch/mAP_50-95`**  
   Demonstrates continuous improvement across all IoU thresholds.
-  
+
+---
+
 #### Summary Def DETR
 
 The training curves show a clear and consistent **upward trend** across all loss components and mAP metrics.  
@@ -722,7 +829,9 @@ As in the Deformable DETR experiment, the model was trained on a rented
 - **`epoch/mAP_50-95`**  
   Demonstrates steady improvements across multiple IoU thresholds,  
   indicating that both localization and classification become more precise as training progresses.
-  
+
+---
+
 #### Summary RT DETRv2
 
 The RT-DETRv2 results exhibit:
@@ -878,6 +987,8 @@ The plots below present the full training progress of the YOLOv11m model trained
 - **`metrics/mAP50-95(B)`**  
   The most important and strict metric rises smoothly from ~0.3 to ~0.6.  
   This reflects solid improvement across all IoU levels, especially in precise localization.
+
+---
 
 ### **Summary**
 
