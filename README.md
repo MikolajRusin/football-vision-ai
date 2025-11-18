@@ -20,9 +20,34 @@ Over time, the project has been refactored to improve its performance and extend
 - [Overview](#overview)
 - [Project Background](#project-background)
 - [Project Structure](#project-structure)
+- [Setting Environment Variables](#setting-environment-variables)
+- [Downloading Data](#downloading-data)
 - [Annotating Data](#annotating-data)
 - [Loading Data](#loading-data)
+  - [LoadDataset](#loaddataset)
+  - [load_dataloader](#load_dataloader)
 - [Training Transformer Models](#training-transformer-models)
+  - [TransformerTrainer](#transformertrainer)
+  - [Training Script Overview](#training-script-overview)
+  - [Main Training Configuration](#main-training-configuration)
+  - [Training Deformable DETR Model](#training-deformable-detr-model)
+    - [Key Features](#key-features-def-detr)
+    - [Used config to train the model](#used-config-to-train-the-def-detr-model)
+    - [Training Results for Deformable DETR](#training-results-for-def-detr)
+    - [Summary](#summary-def-detr)
+  - [Training RT-DETRv2 Model](#training-rt-detrv2-model)
+    - [Key Features](#key-features-rt-detrv2)
+    - [Used config to train the model](#used-config-to-train-the-rt-detrv2-model)
+    - [Training Results for RT-DETRv2](#training-results-for-rt-detrv2)
+    - [Summary](#summary-rt-detrv2)
+- [Training YOLOv11m Model](#training-yolov11m-model)
+  - [Preparing Data for YOLO](#preparing-data-for-yolo)
+  - [Training Setup](#training-setup)
+  - [Training Results for YOLOv11mm](#training-results-for-yolov11m)
+- [Model Comparison](#model-comparison)
+- [Important Note on Training Duration](#important-note-on-training-duration)
+- [Availability of Trained Models](#availability-of-trained-models)
+- [Summary & Recommended Next Step](#summary--recommended-next-step)
 
 ---
 
@@ -243,10 +268,8 @@ The trainer accepts a wide range of parameters, allowing the user to precisely c
 | `frequency_saving_checkpoint` | `int \| None` | Allows saving checkpoints every N iterations. |
 | `wandb_logger` | `WandbLogger \| None` | Optional Weights & Biases logger. |
 | `map_per_class` | `bool` | Enables mAP calculation for each class separately. |
-
----
-
-### Training Loop Overview
+  
+#### Training Loop Overview
 
 The trainer follows a classical loop structure:
 
@@ -269,6 +292,112 @@ The trainer follows a classical loop structure:
    - optionally every *N* iterations.
 
 This setup provides full transparency and control over training — which was one of the key reasons to implement a custom trainer instead of relying on the built-in Hugging Face `Trainer`.
+
+---
+
+### Training Script Overview
+
+The entire training process for both transformer-based models (Deformable DETR and RT-DETRv2) is orchestrated by a single script `training/scripts/train_transformer_model.py`.  
+  
+This script brings together all components of the pipeline — data loading, model initialization,
+augmentation, checkpointing, logging, and the training loop executed by `TransformerTrainer`.
+
+Below is an overview of what the script is responsible for:
+
+---
+
+#### **1. Loading the Training Configuration**
+
+The script uses `OmegaConf` to load a YAML configuration file passed through:
+```
+--config_path path/to/config.yaml
+```
+
+All training hyperparameters, data paths, optimizer settings, schedulers, and model metadata
+are resolved at this stage. The section `Main Training Configuration` explains configuration file in more details.
+  
+#### **2. Preparing the Dataset and Dataloaders**
+
+The script builds the training and (optionally) validation dataloaders using:
+
+- `load_dataloader()`  
+- `LoadDataset`  
+- Albumentations augmentations (if enabled in the config)
+
+Bounding boxes are automatically converted to the desired format  
+(e.g., `xywh` → `cxcywh`, depending on the model requirements).
+  
+#### **3. Building Albumentations Augmentation Pipeline**
+
+If `training.augmentation=True`, a custom augmentation pipeline is used:
+
+- `HorizontalFlip`
+- `RandomBrightnessContrast`
+- `CLAHE`
+- `HueSaturationValue`
+
+All augmentations operate in COCO bbox format and preserve annotations.
+  
+#### **4. Initializing Loggers and Checkpoint Manager**
+
+Depending on config flags:
+
+- **Weights & Biases** logger is created (`WandbLogger`)
+- **ModelCheckpointManager** is initialized to save model weights during training
+
+These modules integrate with the `TransformerTrainer`.
+  
+#### **5. Selecting and Initializing the Model**
+
+The script automatically detects which model to instantiate:
+
+- `RTDetrV2Model` → when model_id contains `"rtdetr"`
+- `DefDetrModel` → when model_id contains `"detr"`
+
+Both wrappers support:
+
+- loading pretrained HF weights  
+- updating `id2label` mappings  
+- optional head reset  
+- full integration with HF Hub during loading/inference
+  
+#### **6. Initializing the Training Pipeline**
+
+All components are assembled into a single training object:
+```
+trainer = TransformerTrainer(
+model=model,
+train_dataloader=train_dataloader,
+valid_dataloader=valid_dataloader,
+...
+)
+```
+Its components are explained in the section above `TransformerTrainer`
+  
+#### **7. Starting the Training Loop**
+
+Finally, the script launches the full training process:
+```
+trainer.train()
+```
+  
+This structure makes the training script modular, clearly organized, and compatible with both transformer-based detection models used in the project.
+
+#### Running the Training Script
+To start training a transformer-based model, first prepare the configuration file  
+(the next section explains the structure of the config in detail).
+
+Then navigate to the training scripts directory:
+```bash
+cd training/scripts
+```
+
+Run the training script by providing the path to your configuration file:
+```bash
+python train_transformer_model.py --config_path <path_to_config_yaml>
+```
+
+This command launches the full training pipeline, including data loading, model initialization and other things depending on the config file.
 
 ---
 
@@ -355,7 +484,7 @@ transformer-based object detection.
 
 ---
 
-#### Key Features
+#### Key Features Def DETR
 
 ##### ✔️ Configurable label space  
 If `id2label` is passed during initialization, the model automatically:
@@ -396,7 +525,7 @@ This is especially useful for sharing trained detectors with collaborators.
 
 ---
 
-#### Used config to train the model
+#### Used config to train the Def DETR model
 
 ```yaml
 # Main configuration for the training process
@@ -461,7 +590,7 @@ wandb_logger:
 
 ---
 
-#### Training Results for Deformable DETR
+#### Training Results for Def DETR
 
 The Deformable DETR model was trained on a rented GPU from Vast.ai —  
 **NVIDIA RTX 3090 Ti with 24 GB of VRAM**.  
@@ -521,8 +650,10 @@ Below are the training results, including iteration-level losses, epoch-level lo
 
 - **`epoch/mAP_50-95`**  
   Demonstrates continuous improvement across all IoU thresholds.
-  
-#### Summary
+
+---
+
+#### Summary Def DETR
 
 The training curves show a clear and consistent **upward trend** across all loss components and mAP metrics.  
 This strongly suggests that:
@@ -540,15 +671,21 @@ Despite the long training time on an RTX 3090 Ti (24 GB VRAM), the model learned
 `RTDetrV2Model` is a wrapper module built around the Hugging Face  
 `RTDetrV2ForObjectDetection` architecture.  
 The implementation of the wrapper can be found in:  
-`models/rt_detrv2_model.py`
+`models/rt_detr_v2_model.py`
 
 Although the same training pipeline (`TransformerTrainer`) was used for both models,  
 **the only meaningful difference lies in the model wrapper itself**:
-- RT-DETRv2’s forward pass **does not use `pixel_mask`**,
+- RT-DETRv2’s forward pass **does not use `pixel_mask`**
 
 ---
 
-#### Used config to train the model
+#### Key Features RT-DETRv2
+
+The wrapper provides the same functionality as the `DefDetrModel` (loading configs, updating label mappings, optional head reset, built-in processor, checkpoint handling, and Hugging Face Hub integration), with the only difference being that it uses the RT-DETRv2-specific classes (`RTDetrV2Config`, `RTDetrImageProcessor`, `RTDetrV2ForObjectDetection`) instead of the Deformable DETR classes.
+
+---
+
+#### Used config to train the RT DETRv2 model
 
 ```yaml
 paths:
@@ -692,8 +829,10 @@ As in the Deformable DETR experiment, the model was trained on a rented
 - **`epoch/mAP_50-95`**  
   Demonstrates steady improvements across multiple IoU thresholds,  
   indicating that both localization and classification become more precise as training progresses.
-  
-#### Summary
+
+---
+
+#### Summary RT DETRv2
 
 The RT-DETRv2 results exhibit:
 
@@ -714,7 +853,7 @@ and shows significant potential with extended training.
 
 ## Training YOLOv11m Model
 
-### Preparing Data for YOLO Model Training
+### Preparing Data for YOLO
 
 The dataset used for training the transformer-based models (Deformable DETR and RT-DETRv2) was originally stored in **COCO format**, where all annotations for each split are stored in a single file:
 
@@ -795,6 +934,79 @@ This workflow allowed fast, large-batch training of YOLOv11m on high-performance
 
 ---
 
+### Training Results for YOLOv11m
+
+The plots below present the full training progress of the YOLOv11m model trained on the converted YOLO dataset.
+![YOLOv11m](results/yolov11m_results.png)
+  
+#### **1. Training Losses (Epoch-Level)**
+
+- **`train/box_loss`**  
+  The bounding-box regression loss decreases steadily from early epochs through epoch 100.  
+  This indicates continuous improvement in spatial localization of players, goalkeepers, referees, and the ball.
+
+- **`train/cls_loss`**  
+  Classification loss falls sharply at the start, then stabilizes at low values — a sign of effective learning of the four classes.  
+  The curve is smooth, reflecting stable optimization.
+
+- **`train/dfl_loss`**  
+  The Distribution Focal Loss also declines consistently.  
+  DFL directly influences bounding box precision, so this downward trend confirms that the model becomes increasingly accurate at predicting object boundaries.
+
+---
+
+#### **2. Validation Losses (Epoch-Level)**
+
+- **`val/box_loss`**  
+  Mirrors the shape of the training loss and decreases consistently.  
+  No divergence is observed — indicating **no overfitting**.
+
+- **`val/cls_loss`**  
+  Shows rapid initial improvement, followed by stable and controlled reduction.  
+  The alignment with the training curve indicates good generalization of class predictions.
+
+- **`val/dfl_loss`**  
+  Very similar to its training counterpart.  
+  This parallel behavior across train/val confirms robust learning without memorization of the training data.
+
+---
+
+#### **3. Core Detection Metrics**
+
+- **`metrics/precision(B)`**  
+  The model’s precision climbs throughout training and stabilizes above **0.9**,  
+  meaning YOLOv11m rarely produces false positives.
+
+- **`metrics/recall(B)`**  
+  Recall progresses from ~0.4 to above **0.75**, showing improved ability to detect all relevant objects on the field.
+
+- **`metrics/mAP50(B)`**  
+  Increases sharply and reaches ~0.85.  
+  This suggests strong detection performance at moderate IoU thresholds.
+
+- **`metrics/mAP50-95(B)`**  
+  The most important and strict metric rises smoothly from ~0.3 to ~0.6.  
+  This reflects solid improvement across all IoU levels, especially in precise localization.
+
+---
+
+### **Summary**
+
+Overall, the YOLOv11m training results demonstrate:
+
+- **stable and consistent convergence** across all loss components,  
+- **tight alignment between training and validation curves**,  
+- **high precision and solid recall**,  
+- **continuous upward trend in mAP metrics**,  
+- **no signs of overfitting** even after 100 epochs.
+
+Importantly, the curves — especially mAP50-95 — had **not yet plateaued**,  
+which strongly suggests that longer training would likely lead to further improvements.
+
+This aligns with findings from the DETR-based experiments, where all models showed upward-trending metrics at the end of training, indicating untapped potential for additional epochs.
+
+---
+
 ## Model Comparison
 
 Below is a visual comparison of the three trained models.  
@@ -845,7 +1057,7 @@ YOLOv11m turned out to be the most reliable model during real video inference.
 
 ---
 
-## ⚠️ **Important Note on Training Duration**
+## **Important Note on Training Duration**
 
 **All three models were trained for a relatively short period of time**, and none of them reached the point of clear metric stabilization (mAP, mAP@50–95, bbox loss).  
 This means the training curves were still showing upward or downward trends at the end of training.
@@ -854,6 +1066,23 @@ This means the training curves were still showing upward or downward trends at t
 ➡️ **If trained longer, each model would almost certainly achieve significantly better accuracy and stability during inference.**
 
 This should be considered when interpreting the comparison.
+
+---
+
+## Availability of Trained Models
+
+All trained models used in this project have been uploaded to **Hugging Face Hub**, making them publicly available and easy to download for anyone.
+
+The following repositories contain the final weights:
+
+- **YOLOv11m Football Detector**  
+  https://huggingface.co/Mikolaj1234/yolov11m-football-ai
+
+- **RT-DETRv2 Football Detector**  
+  https://huggingface.co/Mikolaj1234/rt-detr-v2-football-ai
+
+- **Deformable DETR Football Detector**  
+  https://huggingface.co/Mikolaj1234/def-detr-football-ai
 
 ---
 
@@ -868,7 +1097,7 @@ Both RT-DETRv2 and Deformable DETR suffer from inconsistent ball detection, whil
 Based on the results, the next step should be the addition of a **separate lightweight detector specialized only for ball detection**.  
 A dedicated model focused solely on the ball would significantly improve overall tracking when combined with the main player/referee detector.
 
-### ✔️ Testing inference and processing speed
+## ✔️ Testing inference and processing speed
 
 To reproduce the inference tests and evaluate the processing speed of each model, you can use the provided notebooks:
 
