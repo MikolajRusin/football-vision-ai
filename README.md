@@ -64,12 +64,12 @@ football-ai/
 │   └── def_detr_model.py            # Model architecture for DETR
 ├── notebooks/                               # Jupyter Notebooks for experimentation
 │   ├── annotate_data.ipynb                    # Notebook for data annotation
-│   ├── def_detr_test_one_video.ipynb
+│   ├── def_detr_test_one_video.ipynb          # Notebook for test Def DETR model on one video
 │   ├── download_data.ipynb                    # Notebook for data download
-│   ├── prepare_data_for_yolo_training.ipynb
-│   ├── rt_detr_v2_test_one_video.ipynb
+│   ├── prepare_data_for_yolo_training.ipynb   # Notebook for preparing data before yolo training
+│   ├── rt_detr_v2_test_one_video.ipynb        # Notebook for testing RT-DETR model on one video
 │   ├── test_load_dataset.ipynb                # Notebook for testing dataset loading
-│   └── yolov11m_test_one_video.ipynb 
+│   └── yolov11m_test_one_video.ipynb          # Notebook for testing YOLOv11m model on one video
 ├── training/                          # Training scripts and configurations
 │   ├── scripts/                         # Additional scripts for training
 │   │   └── train_transformer_model.py     # Main training script
@@ -81,8 +81,8 @@ football-ai/
 │   │   ├── load_dataloader.py             # Dataloader management
 │   │   └── load_dataset.py                # Dataset loading utilities
 │   └── box_ops.py                       # Bounding box operations
-├── .gitignore                     # Git ignore file
-└── .venv/                         # Virtual environment for project dependencies
+├── .gitignore
+└── .env
 ```
 
 ---
