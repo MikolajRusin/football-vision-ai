@@ -6,3 +6,6 @@ requirements_download_data.txt
 __pycache__
 wandb
 /checkpoints
+/.yolo_venv
+/runs
+/processed_video
