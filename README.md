@@ -302,7 +302,7 @@ The entire training process for both transformer-based models (Deformable DETR a
 This script brings together all components of the pipeline — data loading, model initialization,
 augmentation, checkpointing, logging, and the training loop executed by `TransformerTrainer`.
 
-Below is a high-level overview of what the script is responsible for:
+Below is an overview of what the script is responsible for:
 
 ---
 
@@ -314,7 +314,7 @@ The script uses `OmegaConf` to load a YAML configuration file passed through:
 ```
 
 All training hyperparameters, data paths, optimizer settings, schedulers, and model metadata
-are resolved at this stage.
+are resolved at this stage. The section `Main Training Configuration` explains configuration file in more details.
   
 #### **2. Preparing the Dataset and Dataloaders**
 
