@@ -1,14 +1,20 @@
 # FootballAI Project
 
+---
+
 ## Overview
 *FootballAI Project* is a computer vision project developed as part of a course in Computer Vision. The primary goal of this project is to track football players on the field using artificial intelligence. 
 The system utilizes object detection models such as DETR to process video frames, annotate key elements of the game (such as players, referees, the ball, etc.).
 
 This project has been refactored to enhance its modularity, scalability, and maintainability. The latest version incorporates improvements to both the underlying model architecture and the data processing pipeline.
 
+---
+
 ## Project Background
 This project was originally developed as part of a Computer Vision course, with the aim of applying machine learning techniques to real-world video analysis problems. 
 Over time, the project has been refactored to improve its performance and extend its functionality, making it suitable for a variety of football game analysis tasks, including player tracking, event detection, and game summarization.
+
+---
 
 ## Table of Contents
 - [Overview](#overview)
@@ -17,6 +23,8 @@ Over time, the project has been refactored to improve its performance and extend
 - [Annotating Data](#annotating-data)
 - [Loading Data](#loading-data)
 - [Training Transformer Models](#training-transformer-models)
+
+---
 
 ## Project Structure
 ```bash
@@ -52,6 +60,8 @@ football-ai/
 └── .venv/                         # Virtual environment for project dependencies
 ```
 
+---
+
 ## Setting Environment Variables
 Before downloading and training data, we need to set up the API keys that will be used in this project.
 
@@ -63,6 +73,9 @@ To set up these variables, create a `.env` file in the project root and paste yo
 ROBOFLOW_API_KEY=<your roboflow api key>
 WANDB_API_KEY=<your wandb api key>
 ```
+
+---
+
 ## Downloading Data
 The dataset for this project has been obtained from two sources:
 
@@ -95,7 +108,9 @@ Both datasets are downloaded and processed in the notebook `notebooks/download_d
 │  └── origin_videos (5 videos)
 │
 ```
-  
+ 
+---
+
 ## Annotating Data
 Once we have downloaded the data, we can proceed to annotate it. The notebook to annotate the data can be found in `notebooks/annotate_data.ipynb`.
 
@@ -129,12 +144,12 @@ you will find an `annotations.json` file with the corresponding annotations for 
 │
 ```
 
+---
+
 ## Loading Data
 
 The project uses a custom dataset loader and a wrapper function for building PyTorch dataloaders.  
 These utilities ensure that images, annotations, and augmentations are handled in a consistent and model-compatible way.
-
----
 
 ### `LoadDataset`
 
@@ -158,9 +173,7 @@ You can find the implementation in: `utils/data_utils/load_dataset.py`
 | `transforms` | `albumentations.Compose \| None` | Image augmentations applied during loading. |
 | `desire_bbox_format` | `str` | The required bounding box format (`xywh`, `cxcywh`, etc.). |
 | `return_img_path` | `bool` | If `True`, the dataset also returns the image path together with the sample. |
-
----
-
+  
 ### `load_dataloader`
 
 The `load_dataloader` function is a convenient wrapper around `LoadDataset` and PyTorch’s `DataLoader`.  
@@ -189,13 +202,13 @@ You can find it in: `utils/data_utils/load_dataloader.py`
 | `desire_bbox_format` | `str` | Bounding box output format expected by the model. |
 | `pin_memory` | `bool` | Enables `pin_memory=True` for faster host-to-GPU transfers. |
 
+---
+
 ## Training Transformer Models
 To train transformer-based object detection models (e.g., Deformable DETR or RT-DETR-V2), a custom training class named `TransformerTrainer` was implemented.  
 Although the Hugging Face `Trainer` class could be used, a custom solution was chosen intentionally — mainly to maintain full control over the training loop, support additional features (e.g., mAP per class, frequency-based validation, custom checkpointing), and to better understand the mechanics behind training transformer architectures.
 
 The full implementation of the trainer can be found in: `training/trainer/transformer_trainer.py`
-
----
 
 ### `TransformerTrainer`
 
@@ -266,9 +279,7 @@ The configurations for models training is stored in: `configs/<model>_training_c
 
 It is organized into several logical blocks, each responsible for a specific part of the training pipeline.  
 Below is an overview of what each field represents (without exposing specific values).
-
----
-
+  
 #### **config.yaml file**
 
 ```yaml
@@ -339,8 +350,7 @@ The goal of this class is to provide a clean, unified interface for:
 - loading checkpoints saved during training,
 - loading models directly from a Hugging Face Hub repository.
 
-This wrapper integrates seamlessly with the `TransformerTrainer` and ensures that  
-images, annotations, and predictions are processed in a format suitable for  
+This wrapper integrates seamlessly with the `TransformerTrainer` and ensures that images, annotations, and predictions are processed in a format suitable for  
 transformer-based object detection.
 
 ---
@@ -460,9 +470,7 @@ This is expected for architectures like Deformable DETR, which require high-reso
 
 Below are the training results, including iteration-level losses, epoch-level losses, and mAP metrics across object sizes and classes.
 ![Training results](results/def_detr_results.png)
-
----
-
+  
 ##### **1. Iteration-Level Losses**
 
 - **`iteration/loss`**  
@@ -471,10 +479,8 @@ Below are the training results, including iteration-level losses, epoch-level lo
 
 - **`iteration/bbox_loss`**  
   Bounding-box regression loss follows the same trend, with expected noise from iteration-to-iteration updates.
-
----
-
-#### **2. Epoch-Level Losses**
+  
+##### **2. Epoch-Level Losses**
 
 - **`epoch/train_loss`** and **`epoch/valid_loss`**  
   Both losses drop consistently throughout training.  
@@ -482,9 +488,7 @@ Below are the training results, including iteration-level losses, epoch-level lo
 
 - **`epoch/train_bbox_loss`** and **`epoch/valid_bbox_loss`**  
   Both decline steadily, confirming improvements in bounding-box localization.
-
----
-
+  
 ##### **3. Size-Based mAP Metrics**
 
 - **`epoch/mAP_medium`**  
@@ -492,9 +496,7 @@ Below are the training results, including iteration-level losses, epoch-level lo
 
 - **`epoch/mAP_small`**  
   Shows a clear upward trend, although with slightly slower growth, which is typical for small objects like the ball.
-
----
-
+  
 ##### **4. Class-Specific mAP Metrics**
 
 - **Ball**  
@@ -508,9 +510,7 @@ Below are the training results, including iteration-level losses, epoch-level lo
 
 - **Referee**  
   mAP also rises over the epochs, though slightly slower due to limited samples.
-
----
-
+  
 ##### **5. Global Detection Metrics**
 
 - **`epoch/mAP_50`**  
@@ -521,9 +521,7 @@ Below are the training results, including iteration-level losses, epoch-level lo
 
 - **`epoch/mAP_50-95`**  
   Demonstrates continuous improvement across all IoU thresholds.
-
----
-
+  
 #### Summary
 
 The training curves show a clear and consistent **upward trend** across all loss components and mAP metrics.  
@@ -631,9 +629,7 @@ RT-DETRv2 is optimized for real-time performance while maintaining strong accura
 As in the Deformable DETR experiment, the model was trained on a rented  
 **NVIDIA RTX 3090 Ti (24 GB VRAM)** from Vast.ai.  
 ![Training results](results/rt_detrv2_results.png)
-
----
-
+  
 ##### **1. Iteration-Level Losses**
 
 - **`iteration/loss`**  
@@ -644,9 +640,7 @@ As in the Deformable DETR experiment, the model was trained on a rented
   Bounding-box loss follows a clear downward trajectory.  
   Although per-iteration values are noisy (expected for dense detection),  
   the global trend is clearly descending.
-
----
-
+  
 ##### **2. Epoch-Level Losses**
 
 - **`epoch/train_loss`** and **`epoch/valid_loss`**  
@@ -659,9 +653,7 @@ As in the Deformable DETR experiment, the model was trained on a rented
 - **`epoch/train_bbox_loss`** and **`epoch/valid_bbox_loss`**  
   Both bounding-box regression losses decline consistently, confirming  
   improved localization accuracy throughout training.
-
----
-
+  
 ##### **3. Size-Based mAP Metrics**
 
 - **`epoch/mAP_medium`**  
@@ -670,9 +662,7 @@ As in the Deformable DETR experiment, the model was trained on a rented
 - **`epoch/mAP_small`**  
   Improves consistently, despite the inherent difficulty of detecting small objects such as distant players or the ball.  
   The upward trajectory suggests the model had not yet fully converged and could benefit from further training.
-
----
-
+  
 ##### **4. Class-Specific mAP Metrics**
 
 - **Ball**  
@@ -689,9 +679,7 @@ As in the Deformable DETR experiment, the model was trained on a rented
 
 - **Referee**  
   Shows a consistent and stable increase, despite class imbalance.
-
----
-
+  
 ##### **5. Global Detection Metrics**
 
 - **`epoch/mAP_50`**  
@@ -704,10 +692,8 @@ As in the Deformable DETR experiment, the model was trained on a rented
 - **`epoch/mAP_50-95`**  
   Demonstrates steady improvements across multiple IoU thresholds,  
   indicating that both localization and classification become more precise as training progresses.
-
----
-
-##### Summary
+  
+#### Summary
 
 The RT-DETRv2 results exhibit:
 
@@ -726,12 +712,168 @@ and shows significant potential with extended training.
 
 ---
 
-### Model Comparison
+## Training YOLOv11m Model
+
+### Preparing Data for YOLO Model Training
+
+The dataset used for training the transformer-based models (Deformable DETR and RT-DETRv2) was originally stored in **COCO format**, where all annotations for each split are stored in a single file:
+
+```
+annotations.json
+```
+
+In the COCO specification, bounding boxes are saved as:
+
+```
+[x_min, y_min, width, height]   # xywh in pixels
+```
+
+This means:
+- coordinates are absolute pixel values,
+- the format represents the top-left corner + width + height.
+
+However, YOLO requires a completely different structure and representation.
+
+For YOLO, **each image must have its own `.txt` label file**, located under a `labels/` directory, and each bounding box must follow the format:
+
+```
+<class_id> <x_center> <y_center> <width> <height>
+```
+
+Where:
+- values are in **cxcywh format**,  
+- all numbers are **normalized to the range [0, 1]** relative to the image width and height,
+- no pixel coordinates are allowed.
+
+Therefore:
+- **COCO → xywh (pixels)**  
+- **YOLO → cxcywh (normalized)**
+
+A valid YOLO dataset follows this structure:
+
+```
+train/
+  images/
+    img_001.jpg
+    img_002.jpg
+    ...
+  labels/
+    img_001.txt
+    img_002.txt
+    ...
+```
+To perform this conversion from COCO to YOLO format, a dedicated notebook was created that could be found in: `notebooks/prepare_data_for_yolo_training.ipynb`  
+The notebook also automatically generated the YOLO configuration file `data/data.yaml`
+
+This file is required by the Ultralytics training pipeline and contains:
+
+- paths to the **training** and **validation** image directories,
+- the total **number of classes**,
+- the list of **class names** used by the YOLO model.
+
+### Training Setup
+
+The YOLOv11m model was trained using a rented GPU instance on **Vast.ai**, similarly to the training setup used for the transformer-based models.  
+However, in this case the training was executed directly from the terminal using the Ultralytics CLI interface.
+
+The following command was used to launch the full training process:
+```
+yolo task=detect train model=yolo11m.pt data=data/data.yaml epochs=100 imgsz=640 batch=32 lr0=0.0001 device=0 project=training_runs name=exp_big
+```
+  
+Where:
+- `model=yolo11m.pt` — selects the YOLOv11m architecture,
+- `data=data/data.yaml` — path to the YOLO-formatted dataset,
+- `epochs=100` — number of training epochs,
+- `imgsz=640` — image resolution used during training,
+- `batch=32` — batch size,
+- `lr0=0.0001` — initial learning rate,
+- `device=0` — GPU index in Vast.ai instance,
+- `project=training_runs` and `name=exp_big` — define the output directory for experiment logs and weights.
+
+This workflow allowed fast, large-batch training of YOLOv11m on high-performance hardware.
+
+---
+
+## Model Comparison
 
 Below is a visual comparison of the three trained models.  
 
-#### Visual Results (GIFs)
+### Visual Results (GIFs)
 
-![Deformable DETR](results/def_detr_results.gif)
-![RT-DETRv2](results/rt_detrv2_results.gif)
-![YOLOv11m](results/yolov11m_results.gif)
+#### Deformable DETR
+![Deformable DETR](results/def_detr_processed_video.gif)
+
+#### RT-DETRv2
+![RT-DETRv2](results/rt_detr_processed_video.gif)
+
+#### YOLOv11m
+![YOLOv11m](results/yolov11m_processed_video.gif)
+
+---
+
+### Deformable DETR — more stable, but still struggles with the ball
+Deformable DETR performs visibly better than RT-DETRv2 when tested on full-pitch video.
+
+- Player detections are **more consistent** and less prone to frame-to-frame flickering.  
+- However, the model still **struggles to detect the ball**, which is often missed or detected inconsistently.  
+- Overall tracking is smoother, but not yet reliable for complete match analysis.
+
+**Summary:** good overall stability, but ball detection remains a significant weakness.
+
+---
+
+### RT-DETRv2 — weakest real-world performance
+Although RT-DETRv2 achieved better metrics during training than Deformable DETR (mAP, mAP@50, mAP@75), its behavior during video inference was noticeably worse.
+
+- The model frequently **loses the ball**, especially when it moves quickly or becomes partially occluded.  
+- It also occasionally **drops players**, particularly those further away in the frame.  
+- Bounding boxes tend to be unstable and “jump” between frames.
+
+**Summary:** excellent metrics, but poor stability and reliability in real match footage.
+
+---
+
+### YOLOv11m — best practical performance
+YOLOv11m turned out to be the most reliable model during real video inference.
+
+- Player positions are **stable across frames**, with minimal flickering.  
+- The model handles occlusions better and maintains consistent detections.  
+- Detection of the ball is still challenging due to its small size and motion blur, but overall performance is stronger than in the transformer-based models.
+
+**Summary:** the most practical model for detecting players and referees on full-pitch footage, despite difficulties with the ball.
+
+---
+
+## ⚠️ **Important Note on Training Duration**
+
+**All three models were trained for a relatively short period of time**, and none of them reached the point of clear metric stabilization (mAP, mAP@50–95, bbox loss).  
+This means the training curves were still showing upward or downward trends at the end of training.
+
+➡️ **Therefore, the qualitative results shown above do *not* represent the full potential of these models.**  
+➡️ **If trained longer, each model would almost certainly achieve significantly better accuracy and stability during inference.**
+
+This should be considered when interpreting the comparison.
+
+---
+
+## Summary & Recommended Next Step
+
+Despite RT-DETRv2 achieving the highest training metrics, **YOLOv11m outperformed all models in real-world inference** thanks to its stability and robustness.
+
+Both RT-DETRv2 and Deformable DETR suffer from inconsistent ball detection, while YOLOv11m also struggles but remains the most stable option overall.
+
+### ✔️ Recommended approach
+
+Based on the results, the next step should be the addition of a **separate lightweight detector specialized only for ball detection**.  
+A dedicated model focused solely on the ball would significantly improve overall tracking when combined with the main player/referee detector.
+
+### ✔️ Testing inference and processing speed
+
+To reproduce the inference tests and evaluate the processing speed of each model, you can use the provided notebooks:
+
+- `notebooks/def_detr_test_one_video.ipynb`  
+- `notebooks/rt_detr_v2_test_one_video.ipynb`  
+- `notebooks/yolov11m_test_one_video.ipynb`
+
+These notebooks allow you to run inference on a full match clip, generate processed videos, and measure execution time for each model.
